@@ -101,7 +101,7 @@ class Request{
 	 * @return array
 	 */
 	static function getAllHeaders(){
-		$headers=array();
+		$headers=[];
 		foreach($_SERVER AS $k=>$v){
 			if(substr($k, 0, 5)=='HTTP_'){
 				$k=mb_convert_case(str_replace('_', '-', substr($k, 5)), MB_CASE_TITLE);

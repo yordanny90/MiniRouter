@@ -40,219 +40,205 @@ class Router{
 	 */
 	public $default_path='index';
 	/**
-	 * @var int Máximo de subniveles de carpetas permitidos en los endpoint. Cada subcarpeta se agrega al {@see Router::$main_namespace}
+	 * >Cuantas más subcarpetas se permitan, menor será la eficiencia de la búsqueda
+	 * @var int Deterina el máximo de subcarpetas permitidos en la búsqueda del endpoint.<br>
+	 * Cada subcarpeta debe ser parte del namespace de la clase del endpoint, empezando por {@see Router::$main_namespace}
 	 */
 	public $max_subdir=1;
 	/**
 	 * @var string|null Indica la ruta recibida para la ejecución del endpoint. Si es null, el sistema la detectará auntomáticamente
 	 */
-	public $received_path=null;
+	public $received_path;
+	/**
+	 * @var string|null Indica el método por el que se ejecuta la ruta recibida. Si es null, el sistema la detectará auntomáticamente
+	 */
+	public $received_method;
 
-	protected $endpoint_dir;
+	private $endpoint_dir;
 	/**
-	 * Ruta válida del Endpoint
-	 * @var string
+	 * @var string Ruta del archivo del endpoint
 	 */
-	protected $_path;
+	private $_file;
 	/**
-	 * Ruta válida del Endpoint
-	 * @var string
+	 * @var string Ruta básica para la clase del endpoint
 	 */
-	protected $_path_class;
+	private $_path_class;
 	/**
-	 * PHP del Endpoint a ejecutar
-	 * @var string
+	 * @var array Lista de parámetros después de la ruta de la clase
 	 */
-	protected $_php_file;
-	/**
-	 * Nombre completo de la Clase a ejecutar
-	 * @var string
-	 */
-	protected $_class;
-	/**
-	 * Metodo a ejecutar
-	 * @var string
-	 */
-	protected $_function;
-	/**
-	 * Parametros para el metodo a ejecutar
-	 * @var array
-	 */
-	protected $_params;
+	private $_params;
+	private $_endpointReady=false;
 
 	protected static function fixPath($path){
 		return trim($path, " \t\n\r\0\x0B/");
 	}
 
-
 	/**
-	 * Analiza la ruta y si es válida, la guarda en {@see Router::$_path} y devuelve NULL
-	 * @param string $path
-	 * @return Response|void
-	 */
-	protected function analizePath($path, Route &$route){
-		if($path==='')
-			throw new NotFoundException();
-		$route->path=$path;
-	}
-
-	/**
-	 * Analiza los parametros para detectar el endpoint.<br>
-	 * Si son validos, guarda
+	 * Analiza la ruta para detectar el endpoint.<br>
+	 * Si son válidos, guarda los valores en los parámetro de salida y devuelve true
 	 * @param $path
+	 * @param null $_params
+	 * @param null $_php_file
+	 * @param null $_path_class
 	 * @throws BadRequestUrl
 	 * @throws NotFoundException
 	 */
-	protected function searchEndPoint($path){
+	private function searchEndPoint($path){
 		$params=array_diff(explode('/', $path), ['']);
 		$class='';
 		$subdir=0;
 		do{
 			$add=array_shift($params);
-			if(is_null($add) || $add==='.' || $add==='..') throw new BadRequestUrl();
+			if(is_null($add) || $add==='.' || $add==='..') throw new BadRequestUrl('Path not allowed: '.var_export($add, true));
 			$class.='/'.$add;
 			$file=$this->endpoint_dir.$class.$this->endpoint_file_suffix;
 		}while(!is_file($file) && is_dir($this->endpoint_dir.$class) && count($params)>0 && ++$subdir<=$this->max_subdir);
 		if(!is_file($file)){
-			throw new NotFoundException();
+			throw new NotFoundException('File not found');
 		}
-		$this->_path_class=$class;
 		$this->_params=$params;
-		$this->_php_file=$file;
-		return $class;
-//		$function=strval(array_shift($params));
-//		$this->_class=str_replace('/', '\\', $this->main_namespace.$class);
-//		$this->_function=Request::getMethod().'_'.$function;
-	}
-
-	/**
-	 * @param $filePHP
-	 * @return mixed|Response
-	 */
-	private static function loadPHP($filePHP){
-		return include($filePHP);
+		$this->_path_class=$class;
+		$this->_file=$file;
 	}
 
 	/**
 	 * @return mixed
-	 * @throws BadRequestUrl
-	 * @throws NotFoundException
-	 * @throws ParamMissingException
 	 */
-	private function exec(){
-		$route=$this->prepareRoute();
-		$obj=new $route->class();
-		return call_user_func_array(array(
-			$obj,
-			$route->function
-		), $route->params);
-	}
-
-	/**
-	 * @throws BadRequestUrl
-	 * @throws NotFoundException
-	 * @throws ParamMissingException
-	 * @throws RouterException
-	 */
-	public function execHTTP(){
-		if(Request::isCLI()){
-			throw new RouterException('Execution by CLI is not allowed', 0);
-		}
-		if(Response::headers_sent()){
-			throw new RouterException('Headers has been sent', 0);
-		}
-		if(is_null($this->received_path))
-			$this->received_path=Request::getPath();
-		$this->exec();
-	}
-
-	/**
-	 * @throws BadRequestUrl
-	 * @throws NotFoundException
-	 * @throws ParamMissingException
-	 * @throws RouterException
-	 */
-	public function execCLI(){
-		if(!Request::isCLI()){
-			throw new RouterException('Only execution by CLI is allowed');
-		}
-		if(is_null($this->received_path))
-			$this->received_path=$_SERVER['argv'][1];
-		$this->exec();
+	private function loadPHP(){
+		return include_once $this->_file;
 	}
 
 	/**
 	 * Router constructor.
 	 * @param $endpoint_dir
-	 * @throws RouterException
+	 * @throws ExecException
 	 */
 	public function __construct($endpoint_dir){
 		$this->endpoint_dir=realpath($endpoint_dir);
 		if(!is_dir($this->endpoint_dir)){
-			throw new RouterException('Enpoint dir not found');
-		}
-	}
-
-	public function scanEndpoints(){
-		$this->_scanEndpoints($all);
-		return $all;
-	}
-
-	private function _scanEndpoints(&$all=[], $withHost=true, $subdir='', $level=0){
-		$suffix=$this->endpoint_file_suffix;
-		$suffix_len=strlen($suffix);
-		foreach(scandir($this->endpoint_dir.$subdir) AS $file){
-			if($file=='.' || $file=='..') continue;
-			$class=($subdir.'/').substr($file, 0, -$suffix_len);
-			if($class && is_file($this->endpoint_dir.$class.$suffix) && substr($file, -$suffix_len)==$suffix){
-				$all[]=Request::getBaseHref($withHost).$class;
-			}
-			elseif(is_dir($this->endpoint_dir.$subdir.'/'.$file) && $level<$this->max_subdir){
-				self::_scanEndpoints($all, $withHost, $subdir.'/'.$file, $level+1);
-			}
+			throw new ExecException('Enpoint dir not found');
 		}
 	}
 
 	/**
-	 * Analiza la ruta y devuelve una ruta lista para ser ejecutada
-	 * @return Route
 	 * @throws BadRequestUrl
+	 * @throws ExecException
 	 * @throws NotFoundException
 	 * @throws ParamMissingException
 	 */
-	private function prepareRoute(){
-		# Analisa y establece el Path
+	public function prepareHTTP(){
+		$this->_endpointReady=false;
+		if(Request::isCLI())
+			throw new ExecException('Execution by CLI is not allowed', 0);
+		if(Response::headers_sent())
+			throw new ExecException('Headers has been sent', 0);
+		if(is_null($this->received_path))
+			$this->received_path=Request::getPath();
+		if(is_null($this->received_method))
+			$this->received_method=Request::getMethod();
 		$path=self::fixPath($this->received_path);
 		if($path==='')
 			$path=self::fixPath($this->default_path);
-		# Determina el EndPoint (archivo, clase, función y parametros)
-		$path_class=$this->searchEndPoint($path);
-		# Carga del PHP del EndPoint
-		self::loadPHP($this->_php_file);
-		# Carga todas las rutas de la clase endpoint
-		try{
-			$routes=Route::getRoutes($this->main_namespace, $path_class);
-		}catch(\ReflectionException $e){
-			throw new NotFoundException('Class not available', 0, $e);
+		$this->searchEndPoint($path);
+		$this->loadPHP();
+		$this->_endpointReady=true;
+	}
+
+	/**
+	 * @throws BadRequestUrl
+	 * @throws NotFoundException
+	 * @throws ParamMissingException
+	 * @throws ExecException
+	 */
+	public function prepareCLI(){
+		$this->_endpointReady=false;
+		if(!Request::isCLI()){
+			throw new ExecException('Only execution by CLI is allowed');
 		}
-		print_r($routes);
+		if(is_null($this->received_path))
+			$this->received_path=$_SERVER['argv'][1];
+		if(is_null($this->received_method))
+			$this->received_method='CLI';
+		$path=self::fixPath($this->received_path);
+		$this->searchEndPoint($path);
+		$this->loadPHP();
+		$this->_endpointReady=true;
+	}
+
+	/**
+	 * Antes de llamarlo se requiere {@see Router::prepareHTTP()} o {@see Router::prepareCLI()}
+	 * @return Route
+	 * @throws ExecException
+	 * @throws NotFoundException
+	 * @throws ParamMissingException
+	 */
+	public function getRoute(){
+		if(!$this->_endpointReady)
+			throw new ExecException('Endpoint not ready');
 		$function='';
-		if(count($this->_params))
-			$function=strval(array_shift($this->_params));
-		$method=Request::getMethod();
+		$params=$this->_params;
+		$function_taken=false;
+		if(count($params)){
+			$function=strval(array_shift($params));
+			$function_taken=true;
+		}
 		try{
-			$route=Route::getRoute($this->main_namespace, $path_class, $function, $method);
+			$route=Route::getRoute($this->main_namespace, $this->_path_class, $this->received_method, $function);
 		}catch(\ReflectionException $e){
-			throw new NotFoundException('Class/Function not available', 0, $e);
+			throw new NotFoundException('Class not found', 0, $e);
 		}
-		if(is_null($route)){
-			throw new NotFoundException('Function not available');
+		if(is_null($route))
+			throw new NotFoundException('Function not found');
+		if($route->function==='' && $function_taken){
+			array_unshift($params, $function);
 		}
-		$route->params=$this->_params;
-		$param_missing=$route->min_params-count($route->params);
-		if($param_missing>0){
+		$param_missing=$route->req_params-count($params);
+		if($param_missing>0)
 			throw new ParamMissingException($param_missing);
-		}
+		$route->exec_params=$params;
 		return $route;
 	}
+
+	/**
+	 * Obtiene todas las rutas del endpoint actual<br>
+	 * Antes de llamarlo se requiere {@see Router::prepareHTTP()} o {@see Router::prepareCLI()}
+	 * @return Route[]
+	 * @throws ExecException
+	 * @throws NotFoundException
+	 */
+	public function dumpRoutes(){
+		if(!$this->_endpointReady)
+			throw new ExecException('Endpoint not ready');
+		try{
+			$routes=Route::getRoutes($this->main_namespace, $this->_path_class);
+		}catch(\ReflectionException $e){
+			throw new NotFoundException('Class not found', 0, $e);
+		}
+		return $routes;
+	}
+
+	public function dumpEndpoints(){
+		$this->_scanEndpoints($all);
+		return $all;
+	}
+
+	private function _scanEndpoints(&$all=[], $subdir='', $level=0){
+		$suffix=$this->endpoint_file_suffix;
+		$suffix_len=strlen($suffix);
+		$dirsrc=opendir($this->endpoint_dir.$subdir);
+		if($dirsrc){
+			while($file=readdir($dirsrc)){
+				if($file=='.' || $file=='..') continue;
+				$class=($subdir.'/').substr($file, 0, -$suffix_len);
+				if($class && is_file($this->endpoint_dir.$class.$suffix) && substr($file, -$suffix_len)==$suffix){
+					$all[]=$class;
+				}
+				elseif(is_dir($this->endpoint_dir.$subdir.'/'.$file) && $level<$this->max_subdir){
+					self::_scanEndpoints($all, $subdir.'/'.$file, $level+1);
+				}
+			}
+			closedir($dirsrc);
+		}
+	}
+
 }

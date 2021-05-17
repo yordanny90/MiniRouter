@@ -102,9 +102,9 @@ class Response{
 		return $this->includeBuffer;
 	}
 
-	public function send(){
+	public function send($includeBuffer=false){
 		if(self::headers_sent()) return false;
-		if(!$this->includeBuffer) self::clearBuffer();
+		if(!$includeBuffer) self::clearBuffer();
 		ob_start();
 		echo $this->content;
 		self::flatBuffer();
@@ -115,8 +115,8 @@ class Response{
 		return true;
 	}
 
-	public function send_exit(){
-		$this->send();
+	public function send_exit($includeBuffer=false){
+		$this->send($includeBuffer);
 		exit;
 	}
 

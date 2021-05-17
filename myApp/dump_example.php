@@ -1,4 +1,6 @@
 <?php
+
+use MiniRouter\Request;
 use MiniRouter\Router;
 use MiniRouter\Response;
 
@@ -20,18 +22,42 @@ Response::addHeaders([
 try{
 	$router=new Router(__DIR__.'/endpoint');
 	// Opciones avanzadas del Router
-	//$router->main_namespace='EndPoint';
-	//$router->endpoint_file_suffix='.ep.php';
-	//$router->default_path='index';
-	//$router->max_subdir=1;
-	//$router->received_path=null;
-	//$router->received_method=null;
+	//	$router->main_namespace='EndPoint';
+	//	$router->endpoint_file_suffix='.ep.php';
+	//	$router->default_path='index';
+	//	$router->max_subdir=1;
+	//	$router->received_path=null;
+	//	$router->received_method=null;
 	$router->prepareHTTP();
-	// Se eoncontró la ruta del endpoint
-	// Ya que se encontró la ruta. Aqui puede realizar validaciones de seguridad antes de ejecutar el endpoint
-	$route=$router->getRoute();
-	// Se eoncontró la función que se ejecutará
-	$route->call();
+	if($router->received_path==''){
+		$endpoints=$router->dumpEndpoints();
+		$base=Request::getBaseHref();
+		array_map(function($v) use ($base){
+			?>
+			<div>
+				<a href="<?=$base.$v?>" target="dump"><?=$base.$v?></a>
+			</div>
+			<?php
+		}, $endpoints);
+		$r=Response::html('');
+		$r->send(1);
+	}
+	else{
+		$routes=$router->dumpRoutes();
+		$base=Request::getBaseHref();
+		array_map(function(\MiniRouter\Route $v) use ($base){
+			?>
+			<div>
+				<b><?=htmlentities($v->method.' '.$base.$v->path)?></b>
+				<pre><?php
+					print_r($v);
+					?></pre>
+			</div>
+			<?php
+		}, $routes);
+		$r=Response::html('');
+		$r->send(1);
+	}
 }catch(\MiniRouter\ExecException $e){
 	(new Response())->content('Internal error')->http_code(500)->send_exit();
 }catch(\MiniRouter\BadRequestUrl $e){

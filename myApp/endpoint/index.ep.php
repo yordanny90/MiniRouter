@@ -1,24 +1,41 @@
 <?php
 namespace endpoint;
-use MiniRouter\Response;
-use MiniRouter\Request;
 
+use MiniRouter\Response;
+use MiniRouter\Route;
+
+/**
+ * @package endpoint
+ */
 class index{
 	public $data=[];
 
-	public function __construct(){
-		$this->input=Request::getInput();
-		$this->headers=Request::getAllHeaders();
-		$this->accept=Request::getAcceptList();
+	/**
+	 * Path: /index
+	 */
+	function _GET_(){
+		print_r([__METHOD__,$this,func_get_args()]);
 	}
 
-	function GET_($id=0, $a='', $b=null){
-		$this->data['argumants']=func_get_args();
-		print_r($this);
+	/**
+	 * Peth: /index/data
+	 * @param mixed ...$a
+	 */
+	function GET_data(...$a){
+		print_r([__METHOD__,$this,func_get_args()]);
 	}
 
-	function POST_(...$a){
-		return Response::json($this->data);
+	public function __call($name, $arguments){
+		print_r(Route::this());
+		echo __FILE__.PHP_EOL.'Function missing:'.PHP_EOL.PHP_EOL;
+		?>
+	public function <?=$name?>(){
+		echo 'Esta es la verdadera función';
+	}
+		<?php
 	}
 
+	public function __destruct(){
+		Response::text('')->send_exit(1);
+	}
 }
