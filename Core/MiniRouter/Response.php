@@ -1,6 +1,6 @@
 <?php
-
 namespace MiniRouter;
+
 class Response{
 	protected static $default_content_type='text/plain';
 
@@ -9,9 +9,10 @@ class Response{
 	protected $content='';
 	protected $extraHeaders=[];
 	protected $includeBuffer=false;
+	protected $nocache=true;
 
 	public function __construct($content_type=null){
-		$this->set_content_type(is_string($content_type)?$content_type:self::$default_content_type);
+		$this->set_content_type(is_string($content_type)?$content_type:static::$default_content_type);
 	}
 
 	/**
@@ -23,8 +24,8 @@ class Response{
 	}
 
 	public static function default_content_type($content_type=null){
-		if(!is_null($content_type)) self::$default_content_type=strval($content_type);
-		return self::$default_content_type;
+		if(!is_null($content_type)) static::$default_content_type=strval($content_type);
+		return static::$default_content_type;
 	}
 
 	public static function headers_sent(&$file=null, &$line=null){
@@ -33,7 +34,7 @@ class Response{
 
 	public static function getHeaderList(){
 		$list=[];
-		foreach(headers_list() AS $h){
+		foreach(headers_list() as $h){
 			$h=explode(':', $h, 2);
 			$h[0]=mb_convert_case($h[0], MB_CASE_TITLE);
 			$list[$h[0]]=trim($h[1]);
@@ -58,7 +59,7 @@ class Response{
 	 * @see ob_get_clean()
 	 */
 	public static function getBuffer(){
-		self::flatBuffer();
+		static::flatBuffer();
 		return ob_get_clean();
 	}
 
@@ -86,7 +87,7 @@ class Response{
 	 * @param array $headers
 	 */
 	public static function addHeaders(array $headers){
-		foreach($headers AS $k=>$v){
+		foreach($headers as $k=>$v){
 			header($k.': '.$v);
 		}
 	}
@@ -103,15 +104,17 @@ class Response{
 	}
 
 	public function send($includeBuffer=false){
-		if(self::headers_sent()) return false;
-		if(!$includeBuffer) self::clearBuffer();
+		if(static::headers_sent()) return false;
+		if(!$includeBuffer) static::clearBuffer();
 		ob_start();
 		echo $this->content;
-		self::flatBuffer();
-		self::addHeaders($this->extraHeaders);
-		self::addHeaders(['Content-Length'=>ob_get_length()]);
-		header('Content-Type: '.$this->content_type, true, $this->http_code);
-		self::sendBuffer();
+		static::flatBuffer();
+		static::addHeaders($this->extraHeaders);
+		header('Content-Type: '.$this->content_type);
+		header('Content-Length: '.ob_get_length());
+		header('Connection: close', true, $this->http_code);
+		http_response_code($this->http_code);
+		static::sendBuffer();
 		return true;
 	}
 
@@ -146,6 +149,17 @@ class Response{
 		return $this;
 	}
 
+	function &cache(int $max_age){
+		if($max_age>0){
+			$this->extraHeaders['Cache-Control']='max-age='.$max_age;
+		}
+		else{
+			$this->extraHeaders['Cache-Control']='no-store, no-cache, must-revalidate, max-age=0';
+			$this->extraHeaders['Pragma']='no-cache';
+		}
+		return $this;
+	}
+
 	/**
 	 * @return array
 	 */
@@ -161,31 +175,19 @@ class Response{
 		$this->content_type=strval($content_type);
 	}
 
-	/**
-	 * @param $data
-	 * @return Response
-	 */
-	static function &json($data){
-		return (new self('application/json'))->content(json_encode($data));
+	static function &json($data): self{
+		return (new static('application/json'))->content(json_encode($data));
 	}
 
-	static function &json_string($json){
-		return (new self('application/json'))->content($json);
+	static function &text($text): self{
+		return (new static('text/plain'))->content($text);
 	}
 
-	static function &text($text){
-		return (new self('text/plain'))->content($text);
+	static function &html($html): self{
+		return (new static('text/html'))->content($html);
 	}
 
-	static function &html($html){
-		return (new self('text/html'))->content($html);
-	}
-
-	static function &xml(\SimpleXMLElement $data){
-		return (new self('application/xml'))->content($data->saveXML());
-	}
-
-	static function &xml_string($xml){
-		return (new self('application/xml'))->content($xml);
+	static function &redirect($location): self{
+		return (new static())->headers(['location'=>$location])->http_code(302);
 	}
 }
