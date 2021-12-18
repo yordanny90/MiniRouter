@@ -1,2 +1,2 @@
 <?php
-include __DIR__.'/myApp/dump_example.php';
+include __DIR__.'/myApp/web_dump.php';

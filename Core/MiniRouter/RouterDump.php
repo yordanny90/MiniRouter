@@ -2,8 +2,8 @@
 
 namespace MiniRouter;
 
-use Exception\Execution;
-use Exception\NotFound;
+use AppException\Execution;
+use AppException\NotFound;
 
 class RouterDump extends Router{
 	/**

@@ -2,10 +2,10 @@
 
 namespace MiniRouter;
 
-use Exception\BadRequestUrl;
-use Exception\Execution;
-use Exception\NotFound;
-use Exception\ParamMissing;
+use AppException\BadRequestUrl;
+use AppException\Execution;
+use AppException\NotFound;
+use AppException\ParamMissing;
 
 class Router{
 	/**
