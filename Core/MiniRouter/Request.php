@@ -58,12 +58,13 @@ class Request{
 	}
 
 	/**
-	 * <code><base href="<?php echo Request::get_base_href(); ?>" target="_blank"></code>
+	 * Devuelve la url raiz del endpont actual
+	 * @param bool $withHost Incluye el protocolo y el hosname
+	 * @param bool $withScript Incluye el nombre del script
 	 * @return string
 	 */
-	public static function getBaseHref($withHost=false){
-		$base=($withHost?self::getScheme().'://'.self::getHeader('host'):'').$_SERVER['SCRIPT_NAME'];
-		return $base;
+	public static function getBaseURI($withHost=false, $withScript=false){
+		return ($withHost?self::getScheme().'://'.self::getHeader('host'):'').($withScript?$_SERVER['SCRIPT_NAME']:preg_replace('/[^\/]*$/','',$_SERVER['SCRIPT_NAME']));
 	}
 
 	public static function getPath(){
@@ -73,28 +74,6 @@ class Request{
 	static function getContentType(){
 		$ct=(isset($_SERVER['CONTENT_TYPE'])?$_SERVER['CONTENT_TYPE']:'');
 		return trim(explode(';', $ct, 2)[0]);
-	}
-
-	static function getInput(){
-		return file_get_contents('php://input');
-	}
-
-	static function getInputResource(){
-		return fopen('php://input', 'r');
-	}
-
-	static function getInput_JSON($assoc=false){
-		return json_decode(self::getInput(), $assoc);
-	}
-
-	static function getInput_XML(){
-		return simplexml_load_string(self::getInput());
-	}
-
-	static function getInput_UrlEncoded(){
-		$result=null;
-		parse_str(self::getInput(), $result);
-		return $result;
 	}
 
 	/**
