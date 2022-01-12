@@ -1,12 +1,6 @@
 <?php
-namespace Endpoint;
+namespace Web;
 
-use MiniRouter\Response;
-use MiniRouter\Route;
-
-/**
- * @package endpoint
- */
 class index{
 	public $data=[];
 

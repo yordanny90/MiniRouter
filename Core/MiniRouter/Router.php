@@ -2,16 +2,7 @@
 
 namespace MiniRouter;
 
-use AppException\BadRequestUrl;
-use AppException\Execution;
-use AppException\NotFound;
-use AppException\ParamMissing;
-
 class Router{
-	/**
-	 * @var string El directorio principal de la aplicación
-	 */
-	public static $app_dir;
 	/**
 	 * @var string Sufijo de los archivos endpoint. Esta sufijo no se indica en {@see Router::$received_path}
 	 */
@@ -38,24 +29,19 @@ class Router{
 	/**
 	 * @var string El namespace al que deben pertenecer las clases de los endpoint
 	 */
-	protected $main_namespace='Endpoint';
+	protected $main_namespace;
 	/**
 	 * @var string El directorio en el que se buscarán las clases de los endpoint
 	 */
 	protected $endpoint_dir;
 	/**
-	 * @var string Ruta del archivo del endpoint
+	 * @var string Nombre completo de la clase del endpoint
 	 */
-	protected $_file;
-	/**
-	 * @var string Ruta básica para la clase del endpoint
-	 */
-	protected $_path_class;
+	protected $_endpoint_class;
 	/**
 	 * @var array Lista de parámetros después de la ruta de la clase
 	 */
 	protected $_params;
-	protected $_endpointReady=false;
 	/**
 	 * @var array Partes de la ruta solicitada
 	 */
@@ -66,53 +52,19 @@ class Router{
 	}
 
 	/**
-	 * Analiza la ruta para detectar el endpoint.<br>
-	 * Si son válidos, guarda los valores en los parámetro de salida y devuelve true
-	 * @param array $route_parts
-	 * @throws Exception
-	 */
-	private function searchEndPoint(array $route_parts){
-		$class='';
-		$subdir=0;
-		do{
-			$add=array_shift($route_parts);
-			if(is_null($add) || $add==='.' || $add==='..') throw new BadRequestUrl('Path not allowed: '.var_export($add, true));
-			$class.='/'.$add;
-			$file=$this->endpoint_dir.$class.static::$endpoint_file_suffix;
-		}while(!is_file($file) && is_dir($this->endpoint_dir.$class) && count($route_parts)>0 && ++$subdir<=static::$max_subdir);
-		if(!is_file($file)){
-			throw new NotFound('File not found');
-		}
-		$this->_params=$route_parts;
-		$this->_path_class=$class;
-		$this->_file=$file;
-	}
-
-	/**
-	 * @return mixed
-	 */
-	private function loadPHP(){
-		return include_once $this->_file;
-	}
-
-	/**
 	 * Router constructor.
 	 * @param string $main_namespace
 	 * @throws Exception
 	 */
 	public function __construct(string $main_namespace){
 		$this->main_namespace=$main_namespace;
-		$this->endpoint_dir=realpath(static::$app_dir.'/'.$main_namespace);
-		if(!is_dir($this->endpoint_dir)){
-			throw new Execution('Endpoint dir not found');
-		}
 	}
 
 	/**
 	 * @throws Exception
 	 */
 	public function prepareForHTTP(){
-		$this->_endpointReady=false;
+		$this->_endpoint_class=null;
 		if(Request::isCLI())
 			throw new Execution('Execution by CLI is not allowed', 0);
 		if(Response::headers_sent())
@@ -128,41 +80,51 @@ class Router{
 	}
 
 	/**
-	 * @throws Exception
+	 * @throws Execution
 	 */
 	public function prepareForCLI(){
-		$this->_endpointReady=false;
+		$this->_endpoint_class=null;
 		if(!Request::isCLI()){
 			throw new Execution('Only execution by CLI is allowed');
 		}
 		if(is_null(static::$received_path))
-			static::$received_path=RequestCLI::getArg(1);
+			static::$received_path=RequestCLI::getArgText(0);
 		if(is_null(static::$received_method))
 			static::$received_method='CLI';
 		$path=self::fixPath(static::$received_path);
 		$this->route_parts=array_diff(explode('/', $path), ['', '.', '..']);
 	}
 
-	/**
-	 * @throws Exception
-	 */
 	public function loadEndPoint(){
-		$this->searchEndPoint($this->route_parts);
-		$this->loadPHP();
-		$this->_endpointReady=true;
+		if($this->_endpoint_class){
+			return;
+		}
+		$route_parts=array_values($this->route_parts);
+		$len=0;
+		do{
+			$class=$this->main_namespace.'\\'.implode('\\', array_slice($route_parts, 0, ++$len));
+			if($class_found=class_exists($class)){
+				$route_parts=array_slice($route_parts, $len);
+				break;
+			}
+		}while(!$class_found && count($route_parts)>$len && $len<=static::$max_subdir);
+		if($class_found){
+			$this->_endpoint_class=$class;
+			$this->_params=$route_parts;
+		}
 	}
 
 	/**
-	 * Antes de llamarlo se requiere {@see Router::prepareForHTTP()} o {@see Router::prepareForCLI()}
+	 * Antes de llamarlo se requiere {@see Router::loadEndPoint()}
 	 * @return Route
 	 * @throws Exception
 	 */
 	public function getRoute(){
-		if(!$this->_endpointReady)
-			throw new Execution('Endpoint not ready');
+		if(!$this->_endpoint_class)
+			throw new NotFound('Class not found');
 		$params=$this->_params;
 		try{
-			$route=Route::getRoute($this->main_namespace, $this->_path_class, static::$received_method, $params);
+			$route=Route::getRoute($this->_endpoint_class, static::$received_method, $params);
 		}catch(\ReflectionException $e){
 			throw new NotFound('Class not found', 0, $e);
 		}
@@ -170,7 +132,7 @@ class Router{
 			throw new NotFound('Function not found');
 		$param_missing=$route->getReqParams()-count($params);
 		if($param_missing>0)
-			throw new ParamMissing($param_missing);
+			throw new NotFound($param_missing);
 		$route->exec_params=$params;
 		return $route;
 	}
