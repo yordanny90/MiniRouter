@@ -81,6 +81,7 @@ class Route{
 	 * @return Route|null
 	 */
 	private static function methodToRoute($path_class, \ReflectionMethod $ref_fn){
+		$path_class=str_replace('\\', '/', $path_class);
 		if($ref_fn->isPublic() && !$ref_fn->isStatic() && ($parts=static::getMethodParts($ref_fn->getName()))){
 			$r=new static($ref_fn);
 			$r->path=$path_class.(strlen($parts['name'])?'/'.$parts['name']:'');
@@ -104,14 +105,19 @@ class Route{
 	}
 
 	/**
-	 * @param string $namespace
-	 * @param string $path
-	 * @return Route[]
+	 * @param string $class
+	 * @param null $method
+	 * @return array
 	 * @throws \ReflectionException
 	 */
-	public static function getRoutes($namespace, $path_class, $method=null){
-		$className=str_replace('/', '\\', $namespace.$path_class);
-		$ref_class=new \ReflectionClass($className);
+	public static function getRoutes($main_namespace, $class, $method=null){
+		if(substr($class,0,strlen($main_namespace))==$main_namespace){
+			$path_class=substr($class, strlen($main_namespace));
+		}
+		else{
+			$path_class=$class;
+		}
+		$ref_class=new \ReflectionClass($class);
 		$routes=[];
 		foreach($ref_class->getMethods(\ReflectionMethod::IS_PUBLIC) AS $ref_fn){
 			if($route=static::methodToRoute($path_class, $ref_fn)){
@@ -123,24 +129,22 @@ class Route{
 	}
 
 	/**
-	 * @param string $namespace
 	 * @param string $path
 	 * @param string $f_method Nombre del método de request
 	 * @param string $f_function Nombre de la función que se busca
 	 * @return Route|null
 	 * @throws \ReflectionException
-	 * @throws \MethodNotAllowed
+	 * @throws Exception
 	 */
-	public static function getRoute($namespace, $path_class, $f_method, &$params){
-		$className=str_replace('/', '\\', $namespace.$path_class);
-		$ref_class=new \ReflectionClass($className);
+	public static function getRoute($class, $f_method, &$params){
+		$ref_class=new \ReflectionClass($class);
 		$params=array_values($params);
 		$name='';
 		if(isset($params[0])){
 			$name=$params[0];
 			try{
 				$ref_fn=$ref_class->getMethod($f_method.'_'.$name);
-				$route=static::methodToRoute($path_class, $ref_fn);
+				$route=static::methodToRoute($class, $ref_fn);
 				array_shift($params);
 				return $route;
 			}catch(\ReflectionException $e){
@@ -148,14 +152,14 @@ class Route{
 		}
 		try{
 			$ref_fn=$ref_class->getMethod($f_method.'_');
-			$route=static::methodToRoute($path_class, $ref_fn);
+			$route=static::methodToRoute($class, $ref_fn);
 			return $route;
 		}catch(\ReflectionException $e){
 		}
 		foreach($ref_class->getMethods(\ReflectionMethod::IS_PUBLIC) AS $ref_fn){
 			if($ref_fn->isPublic() && !$ref_fn->isStatic() && ($m_parts=static::getMethodParts($ref_fn->getName()))){
 				if($m_parts['name']=='' || $m_parts['name']==$name){
-					throw new \MethodNotAllowed('Method '.$f_method.' not allowed');
+					throw new MethodNotAllowed('Method '.$f_method.' not allowed');
 				}
 			}
 		}

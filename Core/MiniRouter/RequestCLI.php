@@ -26,10 +26,25 @@ class RequestCLI{
 		return (isset($args[$index])?$args[$index]:null);
 	}
 
+	public static function getArgVar($index){
+		$args=&static::getArgsVars();
+		return (isset($args[$index])?$args[$index]:null);
+	}
+
+	public static function getArgFlag($index){
+		$args=&static::getArgsFlags();
+		return (isset($args[$index])?$args[$index]:null);
+	}
+
+	public static function getArgText($index){
+		$args=&static::getArgsText();
+		return (isset($args[$index])?$args[$index]:null);
+	}
+
 	public static function &getArgsVars(){
 		$list=[];
 		foreach(static::getArgs() AS $i=>$arg){
-			if($i>1 && preg_match(static::REGEX_ARG_VAR, $arg, $matches)){
+			if($i>0 && preg_match(static::REGEX_ARG_VAR, $arg, $matches)){
 				$list[$matches[1]]=$matches[2];
 			}
 		}
@@ -39,7 +54,7 @@ class RequestCLI{
 	public static function &getArgsFlags(){
 		$list=[];
 		foreach(static::getArgs() AS $i=>$arg){
-			if($i>1 && preg_match(static::REGEX_ARG_FLAG, $arg, $matches)){
+			if($i>0 && preg_match(static::REGEX_ARG_FLAG, $arg, $matches)){
 				$list[$matches[1]]=true;
 			}
 		}
@@ -49,8 +64,8 @@ class RequestCLI{
 	public static function &getArgsText(){
 		$list=[];
 		foreach(static::getArgs() AS $i=>$arg){
-			if($i>1 && !preg_match(static::REGEX_ARG_VAR, $arg) && !preg_match(static::REGEX_ARG_FLAG, $arg)){
-				$list[$i]=$arg;
+			if($i>0 && !preg_match(static::REGEX_ARG_VAR, $arg) && !preg_match(static::REGEX_ARG_FLAG, $arg)){
+				$list[]=$arg;
 			}
 		}
 		return $list;
