@@ -10,14 +10,8 @@ use MiniRouter\Response;
 // Se carga la librería del MiniRouter
 require_once __DIR__.'/init.php';
 
-Response::addHeaders([
-	'Access-Control-Allow-Origin'=>'*',
-	'Access-Control-Allow-Credentials'=>'true',
-//	'Access-Control-Allow-Methods'=>'PUT, GET, POST, DELETE, OPTIONS',
-	'Access-Control-Allow-Headers'=>'Content-Type, Authorization, X-Requested-With',
-	'Content-Type'=>'text/plain',
-	'P3P'=>'CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"',
-]);
+$config=\MiniRouter\Dataset::getData('EndpointsWeb');
+Response::addHeaders($config['headers']);
 
 try{
 	// Opciones avanzadas del Router
@@ -26,13 +20,13 @@ try{
 	//Router::$max_subdir=1;
 	//Router::$received_path=Request::getPath();
 	//Router::$received_method=Request::getMethod();
-	classloader(__DIR__.'/endpoints', Router::$endpoint_file_suffix);
+	Router::$endpoint_dir=__DIR__;
 	# DUMP Endpoints
 	if(Request::getMethod()=='DUMP'){
-		$router=new \MiniRouter\RouterDump('\Web');
+		$router=new \MiniRouter\RouterDump($config['namespace']);
 		$router->prepareForHTTP();
 		if(Router::$received_path==''){
-			$endpoints=$router->dumpEndpoints(__DIR__.'/endpoints');
+			$endpoints=$router->dumpClasses();
 			$base=Request::getBaseURI(0, 1);
 			Response::json([
 				'base'=>$base,
@@ -54,14 +48,20 @@ try{
 		}
 		return;
 	}
-	$router=new Router('\Web');
+	$router=new Router($config['namespace']);
 	$router->prepareForHTTP();
 	$router->loadEndPoint();
 	// Se encontró la ruta del endpoint
-	// Ya que se encontró la ruta. Aqui puede realizar validaciones de seguridad antes de ejecutar el endpoint
+	// Ahora que se encontró la ruta. Aqui puede realizar validaciones de seguridad antes de ejecutar el endpoint
 	$route=$router->getRoute();
-	// Se eoncontró la función que se ejecutará
-	$route->call();
+	// Se encontró la función que se ejecutará
+	// Ahora que la ejecución está preparada. Aqui puede realizar conexiones a bases de datos, inicio de sesión u otros servicios externos que puedan retrazar la ejecución
+	ob_start();
+	unset($config, $router);
+	$result=$route->call();
+	if(is_a($result, Response::class)){
+		$result->send();
+	}
 }catch(\MiniRouter\Exception $e){
-	$e->getResponse()->send();
+	$e->getResponse()->send_exit();
 }

@@ -4,6 +4,10 @@ namespace MiniRouter;
 
 class Router{
 	/**
+	 * @var string Directorio de los archivos endpoint
+	 */
+	public static $endpoint_dir;
+	/**
 	 * @var string Sufijo de los archivos endpoint. Esta sufijo no se indica en {@see Router::$received_path}
 	 */
 	public static $endpoint_file_suffix='.php';
@@ -31,10 +35,6 @@ class Router{
 	 */
 	protected $main_namespace;
 	/**
-	 * @var string El directorio en el que se buscarán las clases de los endpoint
-	 */
-	protected $endpoint_dir;
-	/**
 	 * @var string Nombre completo de la clase del endpoint
 	 */
 	protected $_endpoint_class;
@@ -45,7 +45,7 @@ class Router{
 	/**
 	 * @var array Partes de la ruta solicitada
 	 */
-	protected $route_parts=[];
+	protected $route_parts;
 
 	protected static function fixPath($path){
 		return trim($path, " \t\n\r\0\x0B/");
@@ -64,11 +64,13 @@ class Router{
 	 * @throws Exception
 	 */
 	public function prepareForHTTP(){
-		$this->_endpoint_class=null;
+		if(!is_null($this->_endpoint_class)){
+			return;
+		}
 		if(Request::isCLI())
-			throw new Execution('Execution by CLI is not allowed', 0);
+			throw new Exception(Exception::RESP_EXECUTION, 'Execution by CLI is not allowed');
 		if(Response::headers_sent())
-			throw new Execution('Headers has been sent', 0);
+			throw new Exception(Exception::RESP_EXECUTION,'Headers has been sent');
 		if(is_null(static::$received_path))
 			static::$received_path=Request::getPath();
 		if(is_null(static::$received_method))
@@ -80,12 +82,14 @@ class Router{
 	}
 
 	/**
-	 * @throws Execution
+	 * @throws Exception
 	 */
 	public function prepareForCLI(){
-		$this->_endpoint_class=null;
+		if(!is_null($this->_endpoint_class)){
+			return;
+		}
 		if(!Request::isCLI()){
-			throw new Execution('Only execution by CLI is allowed');
+			throw new Exception(Exception::RESP_EXECUTION,'Only execution by CLI is allowed');
 		}
 		if(is_null(static::$received_path))
 			static::$received_path=RequestCLI::getArgText(0);
@@ -96,9 +100,10 @@ class Router{
 	}
 
 	public function loadEndPoint(){
-		if($this->_endpoint_class){
+		if(!is_null($this->_endpoint_class) || !is_array($this->route_parts)){
 			return;
 		}
+		classloader(self::$endpoint_dir, self::$endpoint_file_suffix, $this->main_namespace);
 		$route_parts=array_values($this->route_parts);
 		$len=0;
 		do{
@@ -112,6 +117,9 @@ class Router{
 			$this->_endpoint_class=$class;
 			$this->_params=$route_parts;
 		}
+		else{
+			$this->_endpoint_class='';
+		}
 	}
 
 	/**
@@ -121,18 +129,18 @@ class Router{
 	 */
 	public function getRoute(){
 		if(!$this->_endpoint_class)
-			throw new NotFound('Class not found');
+			throw new Exception(Exception::RESP_NOTFOUND,'Class');
 		$params=$this->_params;
 		try{
-			$route=Route::getRoute($this->_endpoint_class, static::$received_method, $params);
+			$route=Route::getRoute($this->main_namespace, $this->_endpoint_class, static::$received_method, $params);
 		}catch(\ReflectionException $e){
-			throw new NotFound('Class not found', 0, $e);
+			throw new Exception(Exception::RESP_NOTFOUND,'Class', 0, $e);
 		}
 		if(is_null($route))
-			throw new NotFound('Function not found');
+			throw new Exception(Exception::RESP_NOTFOUND,'Function');
 		$param_missing=$route->getReqParams()-count($params);
 		if($param_missing>0)
-			throw new NotFound($param_missing);
+			throw new Exception(Exception::RESP_MISSINGPARAM,$param_missing.' missing');
 		$route->exec_params=$params;
 		return $route;
 	}

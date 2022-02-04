@@ -1,7 +1,6 @@
 <?php
-namespace Web;
+namespace EndpointWeb;
 
-use MiniRouter\NotFound;
 use MiniRouter\Exception;
 use MiniRouter\Response;
 
@@ -20,7 +19,7 @@ class r{
 	 */
 	function GET_($alias, ...$params){
 		if(!isset($this->alias[$alias])){
-			throw new NotFound();
+			throw new Exception(Exception::RESP_NOTFOUND, 'Alias: '.$alias);
 		}
 		$sub_uri='';
 		if(count($params)){

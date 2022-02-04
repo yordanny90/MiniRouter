@@ -1,21 +1,25 @@
 <?php
-namespace Task;
+
+namespace EndpointTask;
+
 use MiniRouter\RequestCLI;
 
 class args{
-	function CLI_(){
+	static function CLI_(){
 		print_r(RequestCLI::getArgs());
 	}
 
-	function CLI_vars(){
+	static function GET_esto_no_es_cli(){ }
+
+	static function CLI_vars(){
 		print_r(RequestCLI::getArgsVars());
 	}
 
-	function CLI_flags(){
+	static function CLI_flags(){
 		print_r(RequestCLI::getArgsFlags());
 	}
 
-	function CLI_text(){
+	static function CLI_text(){
 		print_r(RequestCLI::getArgsText());
 	}
 

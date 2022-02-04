@@ -1,6 +1,6 @@
 <IfModule mod_rewrite.c>
 RewriteEngine On
 RewriteBase /
-RewriteRule ^Core/ - [F,L]
+RewriteRule ^MRcore/ - [F,L]
 RewriteRule ^myApp/ - [F,L]
 </IfModule>

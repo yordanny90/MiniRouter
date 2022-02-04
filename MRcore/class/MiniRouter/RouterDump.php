@@ -12,18 +12,18 @@ class RouterDump extends Router{
 	 */
 	public function dumpRoutes($method=null){
 		if(!$this->_endpoint_class)
-			throw new NotFound('Class not found');
+			throw new Exception(Exception::RESP_NOTFOUND,'Class');
 		try{
 			$routes=Route::getRoutes($this->main_namespace, $this->_endpoint_class, $method);
 		}catch(\ReflectionException $e){
-			throw new NotFound('Class not found', 0, $e);
+			throw new Exception(Exception::RESP_NOTFOUND,'Class', 0, $e);
 		}
 		return $routes;
 	}
 
-	public function dumpEndpoints($endpoint_dir){
+	public function dumpClasses(){
 		$all=[];
-		$this->_scanEndpoints($endpoint_dir.$this->main_namespace, $all);
+		$this->_scanEndpoints(self::$endpoint_dir.'/'.$this->main_namespace, $all);
 		return $all;
 	}
 

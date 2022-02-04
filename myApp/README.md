@@ -1,9 +1,13 @@
 ##Ejemplo 1
 ```PHP
-namespace Endpoint;
+
+namespace Web;
+
+use MiniRouter\Response;
+
 class index{
     public function GET_(){
-        (new \MiniRouter\Response('Esta es la página principal'))->send_exit();
+        return Response::text('Esta es la página principal');
     }
 }
 ```

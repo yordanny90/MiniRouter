@@ -1,5 +1,4 @@
 <?php
-
 namespace MiniRouter;
 
 /**
@@ -7,7 +6,7 @@ namespace MiniRouter;
  * @package MiniRouter
  * @property array $exec_params
  */
-class Route{
+class Route {
 	/**
 	 * @var string Ruta válida del Endpoint
 	 */
@@ -26,9 +25,9 @@ class Route{
 		return $this->ref->class;
 	}
 
-	public function getInstance(){
+	public function getInstance(...$args){
 		$class=$this->getClass();
-		return new $class();
+		return new $class(...$args);
 	}
 
 	public function getFunction(){
@@ -62,16 +61,35 @@ class Route{
 	}
 
 	/**
-	 * Ejecuta este ruta
-	 * @return bool|mixed
+	 * Ejecuta esta ruta
+	 * @param mixed ...$args Parámetros que recibe el constructor de la clase
+	 * @return false|mixed
 	 */
-	public function call(){
+	public function call(...$args){
 		if(!$this->isCallable())
 			return false;
-		return call_user_func_array([
-			$this->getInstance(),
-			$this->getFunction()
-		], $this->exec_params);
+		if($this->ref->isStatic()){
+			return forward_static_call_array([
+				$this->getClass(),
+				$this->getFunction()
+			], $this->exec_params);
+		}
+		else{
+			return call_user_func_array([
+				$this->getInstance(...$args),
+				$this->getFunction()
+			], $this->exec_params);
+		}
+	}
+
+	public static function class_to_path($main_namespace, $class){
+		if(substr($class,0,strlen($main_namespace))==$main_namespace){
+			$path_class=substr($class, strlen($main_namespace));
+		}
+		else{
+			$path_class=$class;
+		}
+		return $path_class;
 	}
 
 	/**
@@ -82,7 +100,7 @@ class Route{
 	 */
 	private static function methodToRoute($path_class, \ReflectionMethod $ref_fn){
 		$path_class=str_replace('\\', '/', $path_class);
-		if($ref_fn->isPublic() && !$ref_fn->isStatic() && ($parts=static::getMethodParts($ref_fn->getName()))){
+		if($ref_fn->isPublic() && ($parts=static::getMethodParts($ref_fn->getName()))){
 			$r=new static($ref_fn);
 			$r->path=$path_class.(strlen($parts['name'])?'/'.$parts['name']:'');
 			return $r;
@@ -111,14 +129,12 @@ class Route{
 	 * @throws \ReflectionException
 	 */
 	public static function getRoutes($main_namespace, $class, $method=null){
-		if(substr($class,0,strlen($main_namespace))==$main_namespace){
-			$path_class=substr($class, strlen($main_namespace));
-		}
-		else{
-			$path_class=$class;
-		}
-		$ref_class=new \ReflectionClass($class);
 		$routes=[];
+		$ref_class=new \ReflectionClass($class);
+		if(!$ref_class->isInstantiable()){
+			return $routes;
+		}
+		$path_class=self::class_to_path($main_namespace, $class);
 		foreach($ref_class->getMethods(\ReflectionMethod::IS_PUBLIC) AS $ref_fn){
 			if($route=static::methodToRoute($path_class, $ref_fn)){
 				if(is_string($method) && $route->getMethod()!=$method) continue;
@@ -136,15 +152,19 @@ class Route{
 	 * @throws \ReflectionException
 	 * @throws Exception
 	 */
-	public static function getRoute($class, $f_method, &$params){
+	public static function getRoute($main_namespace, $class, $f_method, &$params){
 		$ref_class=new \ReflectionClass($class);
+		if(!$ref_class->isInstantiable()){
+			return null;
+		}
+		$path_class=self::class_to_path($main_namespace, $class);
 		$params=array_values($params);
 		$name='';
 		if(isset($params[0])){
 			$name=$params[0];
 			try{
 				$ref_fn=$ref_class->getMethod($f_method.'_'.$name);
-				$route=static::methodToRoute($class, $ref_fn);
+				$route=static::methodToRoute($path_class, $ref_fn);
 				array_shift($params);
 				return $route;
 			}catch(\ReflectionException $e){
@@ -152,14 +172,14 @@ class Route{
 		}
 		try{
 			$ref_fn=$ref_class->getMethod($f_method.'_');
-			$route=static::methodToRoute($class, $ref_fn);
+			$route=static::methodToRoute($path_class, $ref_fn);
 			return $route;
 		}catch(\ReflectionException $e){
 		}
 		foreach($ref_class->getMethods(\ReflectionMethod::IS_PUBLIC) AS $ref_fn){
-			if($ref_fn->isPublic() && !$ref_fn->isStatic() && ($m_parts=static::getMethodParts($ref_fn->getName()))){
+			if($ref_fn->isPublic() && ($m_parts=static::getMethodParts($ref_fn->getName()))){
 				if($m_parts['name']=='' || $m_parts['name']==$name){
-					throw new MethodNotAllowed('Method '.$f_method.' not allowed');
+					throw new Exception(Exception::RESP_METHODNOTALLOWED,$f_method);
 				}
 			}
 		}

@@ -1,6 +1,6 @@
 <?php
 
-namespace Task;
+namespace EndpointTask;
 
 class hello{
 	function CLI_(...$names){
