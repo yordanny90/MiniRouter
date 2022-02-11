@@ -14,7 +14,7 @@ class args{
 		$this->headers=Request::getAllHeaders();
 		if(count($_GET)) $this->get=$_GET;
 		if(!in_array($_SERVER['REMOTE_ADDR'], ['::1'])){
-			Response::text('IP no autorizada')->http_code(504)->send_exit();
+//			Response::text('IP no autorizada')->http_code(504)->send_exit();
 		}
 	}
 
@@ -23,7 +23,7 @@ class args{
 		return Response::text(ob_get_contents());
 	}
 
-	function GET_globals(){
+	static function GET_globals(){
 		print_r($GLOBALS);
 		return Response::text(ob_get_contents());
 	}
