@@ -1,6 +1,11 @@
 <IfModule mod_rewrite.c>
 RewriteEngine On
-RewriteBase /
+
 RewriteRule ^MRcore/ - [F,L]
 RewriteRule ^myApp/ - [F,L]
+
+# Esto solo se aplica si desea ocultar index.php de las URL y forzar siempre los request por index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule .* %{ENV:BASE}index.php/$0 [QSA,L]
+
 </IfModule>
