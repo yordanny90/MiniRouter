@@ -15,6 +15,7 @@ Response::addHeaders($config['headers']);
 
 try{
 	// Opciones avanzadas del Router
+	//Router::$endpoint_file_prefix='';
 	//Router::$endpoint_file_suffix='.php';
 	//Router::$default_path='index';
 	//Router::$max_subdir=1;
@@ -31,7 +32,8 @@ try{
 			Response::json([
 				'base'=>$base,
 				'endpoints'=>$endpoints
-			])->send_exit();
+			])->send();
+			exit;
 		}
 		else{
 			$router->loadEndPoint();
@@ -44,7 +46,8 @@ try{
 			Response::json([
 				'base'=>$base,
 				'routes'=>$routes
-			])->send_exit();
+			])->send();
+			exit;
 		}
 		return;
 	}
@@ -63,5 +66,6 @@ try{
 		$result->send();
 	}
 }catch(\MiniRouter\Exception $e){
-	$e->getResponse()->send_exit();
+	$e->getResponse()->send();
+	exit;
 }

@@ -11,6 +11,7 @@ $config=\MiniRouter\Dataset::getData('EndpointsTask');
 
 try{
 	// Opciones avanzadas del Router
+	//Router::$endpoint_file_prefix='';
 	//Router::$endpoint_file_suffix='.php';
 	//Router::$default_path='index';
 	//Router::$max_subdir=1;
@@ -45,5 +46,5 @@ try{
 	// Se encontró la función que se ejecutará
 	$result=$route->call($router, $route);
 }catch(\MiniRouter\Exception $e){
-	$e->getResponse()->send(1);
+	$e->getResponse()->send();
 }

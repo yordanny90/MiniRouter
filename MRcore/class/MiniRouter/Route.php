@@ -6,7 +6,7 @@ namespace MiniRouter;
  * @package MiniRouter
  * @property array $exec_params
  */
-class Route {
+class Route{
 	/**
 	 * @var string Ruta válida del Endpoint
 	 */
@@ -64,22 +64,25 @@ class Route {
 	 * Ejecuta esta ruta
 	 * @param mixed ...$args Parámetros que recibe el constructor de la clase
 	 * @return false|mixed
+	 * @throws Exception
 	 */
 	public function call(...$args){
 		if(!$this->isCallable())
-			return false;
+			throw new Exception(Exception::RESP_EXECUTION, 'The route cannot be executed');
 		if($this->ref->isStatic()){
-			return forward_static_call_array([
+			$res=forward_static_call_array([
 				$this->getClass(),
 				$this->getFunction()
 			], $this->exec_params);
 		}
 		else{
-			return call_user_func_array([
-				$this->getInstance(...$args),
+			$obj=$this->getInstance(...$args);
+			$res=call_user_func_array([
+				$obj,
 				$this->getFunction()
 			], $this->exec_params);
 		}
+		return $res;
 	}
 
 	public static function class_to_path($main_namespace, $class){

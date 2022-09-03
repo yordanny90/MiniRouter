@@ -23,7 +23,7 @@ class Request{
 	 * @return bool
 	 */
 	public static function isCLI(){
-		return (isset($_SERVER['argv']) && !isset($_SERVER['REQUEST_METHOD']));
+		return (php_sapi_name()=='cli' && isset($_SERVER['argc']) && isset($_SERVER['argv']) && is_array($_SERVER['argv']));
 	}
 
 	/**

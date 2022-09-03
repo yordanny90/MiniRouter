@@ -10,7 +10,18 @@ class Dataset implements \JsonSerializable{
 		$this->file=$file;
 	}
 
-	public function getFile(): ?string{
+	/**
+	 * @param string|null $file
+	 * @return Dataset|null
+	 */
+	public static function open(?string $file){
+		if(is_file($file)){
+			return new self($file);
+		}
+		return null;
+	}
+
+	public function getFile(){
 		return $this->file;
 	}
 
@@ -33,6 +44,11 @@ class Dataset implements \JsonSerializable{
 
 	public function jsonSerialize(){
 		return $this->data();
+	}
+
+	static function is_registered_dir($dirname){
+		$dir=realpath($dirname);
+		return $dir && in_array($dir, self::$dir_list);
 	}
 
 	static function register_dir($dirname, $prepend=true){
@@ -59,14 +75,14 @@ class Dataset implements \JsonSerializable{
 		return false;
 	}
 
-	static function get($nombre): self{
+	static function get($nombre): ?self{
 		foreach(self::$dir_list as &$dir){
 			$file=$dir.'/'.$nombre.'.php';
-			if(is_file($file)){
-				return new self($file);
+			if($ds=self::open($file)){
+				return $ds;
 			}
 		}
-		return new self(null);
+		return null;
 	}
 
 	static function getData($nombre, array $params = []){
@@ -79,9 +95,9 @@ class Dataset implements \JsonSerializable{
 		$list=[];
 		foreach(self::$dir_list as &$dir){
 			$file=$dir.'/'.$nombre.'.php';
-			if(is_file($file)){
-				if($file_as_key) $list[$file]=new self($file);
-				else $list[]=new self($file);
+			if($ds=self::open($file)){
+				if($file_as_key) $list[$file]=$ds;
+				else $list[]=$ds;
 			}
 		}
 		return $list;
@@ -91,8 +107,8 @@ class Dataset implements \JsonSerializable{
 		$data=[];
 		foreach(self::$dir_list as &$dir){
 			$file=$dir.'/'.$nombre.'.php';
-			if(is_file($file)){
-				$data=array_merge($data, (new self($file))->data($params));
+			if($ds=self::open($file)){
+				$data=array_merge($data, $ds->data($params));
 			}
 		}
 		return $data;

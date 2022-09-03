@@ -8,7 +8,11 @@ class Router{
 	 */
 	public static $endpoint_dir;
 	/**
-	 * @var string Sufijo de los archivos endpoint. Esta sufijo no se indica en {@see Router::$received_path}
+	 * @var string Prefijo de los archivos endpoint. Este prefijo no se indica en {@see Router::$received_path}
+	 */
+	public static $endpoint_file_prefix='';
+	/**
+	 * @var string Sufijo de los archivos endpoint. Este sufijo no se indica en {@see Router::$received_path}
 	 */
 	public static $endpoint_file_suffix='.php';
 	/**
@@ -103,7 +107,7 @@ class Router{
 		if(!is_null($this->_endpoint_class) || !is_array($this->route_parts)){
 			return;
 		}
-		classloader(self::$endpoint_dir, self::$endpoint_file_suffix, $this->main_namespace);
+		classloader(self::$endpoint_dir, self::$endpoint_file_prefix, self::$endpoint_file_suffix, $this->main_namespace);
 		$route_parts=array_values($this->route_parts);
 		$len=0;
 		do{

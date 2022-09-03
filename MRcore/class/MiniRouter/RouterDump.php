@@ -28,14 +28,16 @@ class RouterDump extends Router{
 	}
 
 	private function _scanEndpoints($endpoint_dir, &$all=[], $subdir='', $level=0){
+		$prefix=static::$endpoint_file_prefix;
 		$suffix=static::$endpoint_file_suffix;
+		$prefix_len=strlen($prefix);
 		$suffix_len=strlen($suffix);
 		$dirsrc=opendir($endpoint_dir.$subdir);
 		if($dirsrc){
 			while($file=readdir($dirsrc)){
 				if($file=='.' || $file=='..') continue;
-				$class=($subdir.'/').substr($file, 0, -$suffix_len);
-				if($class && is_file($endpoint_dir.$class.$suffix) && substr($file, -$suffix_len)==$suffix){
+				$class=($subdir.'/').substr($file, $prefix_len, -$suffix_len);
+				if($class && is_file($endpoint_dir.$prefix.$class.$suffix) && substr($file, 0, $prefix_len)==$prefix && substr($file, -$suffix_len)==$suffix){
 					$all[]=$class;
 				}
 				elseif(is_dir($endpoint_dir.$subdir.'/'.$file) && $level<static::$max_subdir){
