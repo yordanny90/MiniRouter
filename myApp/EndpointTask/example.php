@@ -4,7 +4,7 @@ namespace EndpointTask;
 
 use MiniRouter\RequestCLI;
 
-class args{
+class example{
 	static function CLI_(){
 		print_r(RequestCLI::getArgs());
 	}

@@ -9,7 +9,7 @@ class Response{
 	protected $content;
 	protected $extraHeaders=[];
 	protected $includeBuffer=false;
-	protected $keepAlive;
+	protected $closeConn=true;
 
 	public function __construct($content_type=null){
 		$this->content_type($content_type);
@@ -47,7 +47,7 @@ class Response{
 	 */
 	public static function flatBuffer(){
 		while(ob_get_level()>1){
-			ob_get_flush();
+			ob_end_flush();
 		}
 		if(!ob_get_level()) ob_start();
 	}
@@ -95,22 +95,21 @@ class Response{
 	/**
 	 * El parámetro establece si el buffer se incluirá en la respuesta para el cliente (browser).<br>
 	 * Por defecto el buffer está excluido de todas las respuestas
-	 * @param null|bool $include
-	 * @return bool
+	 * @param bool $include
+	 * @return $this
 	 */
-	public function includeBuffer($include=null){
-		if(!is_null($include)) $this->includeBuffer=boolval($include);
-		return $this->includeBuffer;
+	public function &includeBuffer($include){
+		$this->includeBuffer=boolval($include);
+		return $this;
 	}
 
 	/**
-	 * No se recomienda usar con HTTP/2
-	 * @param $val
-	 * @return bool
+	 * @param bool $val
+	 * @return $this
 	 */
-	public function keepAlive($val=null){
-		if(!is_null($val)) $this->keepAlive=boolval($val);
-		return $this->includeBuffer;
+	public function &closeConn($val){
+		$this->closeConn=boolval($val);
+		return $this;
 	}
 
 	public function content_size(){
@@ -142,17 +141,19 @@ class Response{
 
 	public function send(){
 		if(static::headers_sent()) return false;
-		$length=$this->content_size();
+		if($this->closeConn) $length=$this->content_size();
 		if($this->includeBuffer){
 			static::flatBuffer();
-			$length+=ob_get_length();
+			if($this->closeConn) $length+=ob_get_length();
 		}
 		else{
 			static::clearBuffer();
 		}
 		static::addHeaders($this->extraHeaders);
-		if($this->keepAlive===false) header('Content-Length: '.$length);
-		if(is_bool($this->keepAlive)) header('Connection: '.($this->keepAlive?'keep-alive':'close'), true, $this->http_code);
+		if($this->closeConn){
+			header('Content-Length: '.$length);
+			header('Connection: close', true, $this->http_code);
+		}
 		http_response_code($this->http_code);
 		static::flushBuffer();
 		$this->flushContent();
