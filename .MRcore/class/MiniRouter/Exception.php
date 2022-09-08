@@ -2,28 +2,84 @@
 
 namespace MiniRouter;
 
-class Exception extends \Exception{
-	const RESP_EXECUTION='MiniRouter/Responses/Execution';
-	const RESP_METHODNOTALLOWED='MiniRouter/Responses/MethodNotAllowed';
-	const RESP_MISSINGPARAM='MiniRouter/Responses/MissingParam';
-	const RESP_NOTFOUND='MiniRouter/Responses/NotFound';
+abstract class Exception extends \Exception{
+	const RESP_EXECUTION='Execution';
+	const RESP_METHODNOTALLOWED='MethodNotAllowed';
+	const RESP_MISSINGPARAM='MissingParam';
+	const RESP_NOTFOUND='NotFound';
 
-	protected $response;
+	protected $type_resp;
 
-	public function __construct($response, $message="", $code=0, \Throwable $previous=null){
+	/**
+	 * @param mixed $type_resp Tipo de mensaje de respuesta {@see Exception::getTypeResp()}
+	 * @param $message
+	 * @param $code
+	 * @param \Throwable|null $previous
+	 */
+	public function __construct($type_resp, $message="", $code=0, \Throwable $previous=null){
 		parent::__construct($message, $code, $previous);
-		$this->response=$response;
+		$this->type_resp=$type_resp;
 	}
 
-	public function getResponse(): Response{
-		$res=$this->response;
-		if(is_string($res)){
-			$res=Dataset::get($this->response);
-			if($res) $res=$res->data(['exception'=>&$this]);
+	/**
+	 * @return mixed Tipo de mensaje de respuesta
+	 * @see Exception::RESP_EXECUTION
+	 * @see Exception::RESP_METHODNOTALLOWED
+	 * @see Exception::RESP_MISSINGPARAM
+	 * @see Exception::RESP_NOTFOUND
+	 */
+	public function getTypeResp(){
+		return $this->type_resp;
+	}
+
+	final public function getResponse(){
+		if($this->type_resp===static::RESP_EXECUTION){
+			return $this->resp_execution();
 		}
-		if(!is_a($res, Response::class)){
-			$res=Response::text($this->response.PHP_EOL.$this->getMessage())->http_code(500);
+		elseif($this->type_resp===static::RESP_METHODNOTALLOWED){
+			return $this->resp_methodnotallowed();
 		}
-		return $res;
+		elseif($this->type_resp===static::RESP_MISSINGPARAM){
+			return $this->resp_missingparam();
+		}
+		elseif($this->type_resp===static::RESP_NOTFOUND){
+			return $this->resp_notfound();
+		}
+		return $this->resp_generic();
+	}
+
+	/**
+	 * @return Response
+	 */
+	protected function resp_execution(){
+		return Response::r_text('Execution error. '.$this->getMessage())->http_code(500);
+	}
+
+	/**
+	 * @return Response
+	 */
+	protected function resp_methodnotallowed(){
+		return Response::r_text('Method not allowed. '.$this->getMessage())->http_code(405);
+	}
+
+	/**
+	 * @return Response
+	 */
+	protected function resp_missingparam(){
+		return Response::r_text('Missing parts in URL. '.$this->getMessage())->http_code(404);
+	}
+
+	/**
+	 * @return Response
+	 */
+	protected function resp_notfound(){
+		return Response::r_text('Endpoint not found. '.$this->getMessage())->http_code(404);
+	}
+
+	/**
+	 * @return Response
+	 */
+	protected function resp_generic(){
+		return Response::r_text('Error ('.$this->getTypeResp().'). '.$this->getMessage())->http_code(500);
 	}
 }
