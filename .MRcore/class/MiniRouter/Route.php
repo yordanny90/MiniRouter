@@ -68,7 +68,7 @@ class Route{
 	 */
 	public function call(...$args){
 		if(!$this->isCallable())
-			throw new Exception(Exception::RESP_EXECUTION, 'The route cannot be executed');
+			throw new \AppException(\AppException::RESP_EXECUTION, 'The route cannot be executed');
 		if($this->ref->isStatic()){
 			$res=forward_static_call_array([
 				$this->getClass(),
@@ -182,7 +182,7 @@ class Route{
 		foreach($ref_class->getMethods(\ReflectionMethod::IS_PUBLIC) AS $ref_fn){
 			if($ref_fn->isPublic() && ($m_parts=static::getMethodParts($ref_fn->getName()))){
 				if($m_parts['name']=='' || $m_parts['name']==$name){
-					throw new Exception(Exception::RESP_METHODNOTALLOWED,$f_method);
+					throw new \AppException(\AppException::RESP_METHODNOTALLOWED,$f_method);
 				}
 			}
 		}

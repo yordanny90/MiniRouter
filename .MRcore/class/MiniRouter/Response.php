@@ -3,8 +3,6 @@
 namespace MiniRouter;
 
 class Response{
-	protected static $default_content_type='text/plain';
-
 	protected $http_code=200;
 	protected $content;
 	protected $extraHeaders=[];
@@ -21,11 +19,6 @@ class Response{
 	 */
 	public static function continue_on_disconnect($value=null){
 		return ignore_user_abort($value);
-	}
-
-	public static function default_content_type($content_type=null){
-		if(!is_null($content_type)) static::$default_content_type=strval($content_type);
-		return static::$default_content_type;
 	}
 
 	public static function headers_sent(&$file=null, &$line=null){
@@ -46,21 +39,22 @@ class Response{
 	 * Elimina todos los niveles del buffer y deja su contenido en un solo nivel para ser utilizado después
 	 */
 	public static function flatBuffer(){
-		while(ob_get_level()>1){
-			ob_end_flush();
-		}
-		if(!ob_get_level()) ob_start();
+		$b=self::getBuffer();
+		ob_start();
+		echo $b;
 	}
 
 	/**
 	 * Obtiene el buffer completo de salida, a la vez que elimina todos los niveles del buffer
 	 * @return string
-	 * @see Response::flatBuffer()
 	 * @see ob_get_clean()
 	 */
-	public static function getBuffer(){
-		static::flatBuffer();
-		return ob_get_clean();
+	public static function &getBuffer(){
+		$b='';
+		while(ob_get_level()>0){
+			$b=ob_get_clean().$b;
+		}
+		return $b;
 	}
 
 	/**
@@ -112,51 +106,18 @@ class Response{
 		return $this;
 	}
 
-	public function content_size(){
-		if(is_string($this->content)){
-			return strlen($this->content);
-		}
-		elseif(is_object($this->content) && is_string($this->content->file ?? null) && is_int($this->content->size ?? null)){
-			return $this->content->size;
-		}
-		return 0;
-	}
-
-	private function flushContent(){
-		if(is_string($this->content)){
-			echo $this->content;
-			flush();
-		}
-		elseif(is_array($this->content) && is_string($this->content->file ?? null) && is_int($this->content->size ?? null)){
-			if(!($this->content->res ?? null)){
-				$this->content->res=fopen($this->content->file ?? null, 'r', false, $this->content->context ?? null);
-			}
-			if($this->content->res){
-				fpassthru($this->content->res);
-				flush();
-				fclose($this->content->res);
-			}
-		}
-	}
-
 	public function send(){
 		if(static::headers_sent()) return false;
-		if($this->closeConn) $length=$this->content_size();
-		if($this->includeBuffer){
-			static::flatBuffer();
-			if($this->closeConn) $length+=ob_get_length();
-		}
-		else{
-			static::clearBuffer();
-		}
+		if(!$this->includeBuffer) static::clearBuffer();
+		static::flatBuffer();
+		$this->flushContent();
 		static::addHeaders($this->extraHeaders);
 		if($this->closeConn){
-			header('Content-Length: '.$length);
-			header('Connection: close', true, $this->http_code);
+			header('Content-Length: '.ob_get_length(), true);
+			header('Connection: close', true);
 		}
 		http_response_code($this->http_code);
 		static::flushBuffer();
-		$this->flushContent();
 		return true;
 	}
 
@@ -177,6 +138,17 @@ class Response{
 		return $this;
 	}
 
+	private function flushContent(){
+		if(is_string($this->content)){
+			echo $this->content;
+		}
+		elseif(is_resource($this->content ?? null)){
+			fpassthru($this->content);
+			fclose($this->content);
+		}
+		$this->content=null;
+	}
+
 	function hasContent(){
 		return !is_null($this->content);
 	}
@@ -189,18 +161,28 @@ class Response{
 
 	function &content(string $content){
 		$this->content=$content;
+		$this->http_code(200);
 		return $this;
 	}
 
 	function &contentFile(string $filename, $context=null){
 		$res=fopen($filename, 'r', false, $context);
-		if($res){
-			$this->content=(object)[
-				'res'=>$res,
-				'size'=>fstat($res)['size'],
-				'file'=>$filename,
-				'context'=>$context,
-			];
+		if(is_resource($res)){
+			$this->content=$res;
+			$this->http_code(200);
+		}
+		$this->noContent();
+		$this->http_code(204);
+		return $this;
+	}
+
+	/**
+	 * @param null|resource $res
+	 * @return $this
+	 */
+	function &contentResource($res){
+		if(is_resource($res)){
+			$this->content=$res;
 			$this->http_code(200);
 		}
 		$this->noContent();
@@ -259,27 +241,31 @@ class Response{
 		return $this;
 	}
 
-	static function &file($filename, $context=null, $mime=null): self{
-		return (new static($mime ?? 'application/octet-stream'))->download(basename($filename))->contentFile($filename, $context);
+	static function &r_file($filename, $context=null, $mime=null): self{
+		return (new static($mime ?? 'application/octet-stream'))->contentFile($filename, $context);
 	}
 
-	static function &json($data): self{
+	static function &r_resource($resource, $mime=null): self{
+		return (new static($mime ?? 'application/octet-stream'))->contentResource($resource);
+	}
+
+	static function &r_json($data): self{
 		return (new static('application/json'))->content(json_encode($data));
 	}
 
-	static function &text(string $text): self{
+	static function &r_text(string $text): self{
 		return (new static('text/plain'))->content($text);
 	}
 
-	static function &html(string $html): self{
+	static function &r_html(string $html): self{
 		return (new static('text/html'))->content($html);
 	}
 
-	static function &redirect(string $location): self{
-		return (new static())->headers(['location'=>$location])->http_code(302)->cache(0);
+	static function &r_redirect(string $location): self{
+		return (new static())->headers(['location'=>$location])->http_code(302)->noCache();
 	}
 
-	static function &empty(): self{
+	static function &r_empty(): self{
 		return (new static())->noContent();
 	}
 

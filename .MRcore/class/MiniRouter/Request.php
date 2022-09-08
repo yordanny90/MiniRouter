@@ -57,16 +57,6 @@ class Request{
 		return (isset($_SERVER['REQUEST_SCHEME'])?$_SERVER['REQUEST_SCHEME']:'');
 	}
 
-	/**
-	 * Devuelve la url raiz del endpont actual
-	 * @param bool $withHost Incluye el protocolo y el hosname
-	 * @param bool $withScript Incluye el nombre del script
-	 * @return string
-	 */
-	public static function getBaseURI($withHost=false, $withScript=false){
-		return ($withHost?self::getScheme().'://'.self::getHeader('host'):'').($withScript?$_SERVER['SCRIPT_NAME']:preg_replace('/[^\/]*$/','',$_SERVER['SCRIPT_NAME']));
-	}
-
 	public static function getPath(){
 		return isset($_SERVER['PATH_INFO'])?$_SERVER['PATH_INFO']:'';
 	}
