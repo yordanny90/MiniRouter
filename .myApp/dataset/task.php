@@ -1,4 +1,4 @@
 <?php
 return [
-	'namespace'=>'EndpointTask',
+	'namespace'=>'Task',
 ];

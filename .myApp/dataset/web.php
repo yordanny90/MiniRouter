@@ -8,5 +8,5 @@ return [
 		//	'Content-Type'=>'text/plain',
 		'P3P'=>'CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"',
 	],
-	'namespace'=>'EndpointWeb',
+	'namespace'=>'Web',
 ];

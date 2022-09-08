@@ -1,8 +1,7 @@
 <?php
 
-namespace EndpointWeb;
+namespace Web;
 
-use MiniRouter\Dataset;
 use MiniRouter\Request;
 use MiniRouter\Response;
 

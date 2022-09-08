@@ -1,6 +1,6 @@
 <?php
 
-namespace EndpointTask;
+namespace Task;
 
 use MiniRouter\RequestCLI;
 
