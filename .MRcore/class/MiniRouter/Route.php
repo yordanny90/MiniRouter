@@ -64,7 +64,7 @@ class Route{
 	 * Ejecuta esta ruta
 	 * @param mixed ...$args Parámetros que recibe el constructor de la clase
 	 * @return false|mixed
-	 * @throws Exception
+	 * @throws RouteException
 	 */
 	public function call(...$args){
 		if(!$this->isCallable())
@@ -148,45 +148,58 @@ class Route{
 	}
 
 	/**
-	 * @param string $path
+	 * @param string $main_namespace
+	 * @param string $class
 	 * @param string $f_method Nombre del método de request
 	 * @param string $f_function Nombre de la función que se busca
-	 * @return Route|null
-	 * @throws \ReflectionException
-	 * @throws Exception
+	 * @param array $params
+	 * @return Route
+	 * @throws RouteException
 	 */
 	public static function getRoute($main_namespace, $class, $f_method, &$params){
-		$ref_class=new \ReflectionClass($class);
+		try{
+			$ref_class=new \ReflectionClass($class);
+		}catch(\ReflectionException $e){
+			throw new \AppException(\AppException::RESP_NOTFOUND,'Class', 0, $e);
+		}
 		if(!$ref_class->isInstantiable()){
-			return null;
+			throw new \AppException(\AppException::RESP_NOTFOUND,'Non-instantiable class');
 		}
 		$path_class=self::class_to_path($main_namespace, $class);
 		$params=array_values($params);
-		$name='';
-		if(isset($params[0])){
-			$name=$params[0];
-			try{
-				$ref_fn=$ref_class->getMethod($f_method.'_'.$name);
-				$route=static::methodToRoute($path_class, $ref_fn);
-				array_shift($params);
-				return $route;
-			}catch(\ReflectionException $e){
-			}
-		}
-		try{
-			$ref_fn=$ref_class->getMethod($f_method.'_');
-			$route=static::methodToRoute($path_class, $ref_fn);
-			return $route;
-		}catch(\ReflectionException $e){
-		}
+		$name=$params[0]??null;
+		$route=null;
+		$allows=[];
 		foreach($ref_class->getMethods(\ReflectionMethod::IS_PUBLIC) AS $ref_fn){
-			if($ref_fn->isPublic() && ($m_parts=static::getMethodParts($ref_fn->getName()))){
-				if($m_parts['name']=='' || $m_parts['name']==$name){
-					throw new \AppException(\AppException::RESP_METHODNOTALLOWED,$f_method);
+			if($m_parts=static::getMethodParts($ref_fn->getName())){
+				if($m_parts['name']===$name){
+					$allows[]=$m_parts['method'];
+					if($m_parts['method']===$f_method){
+						$route=static::methodToRoute($path_class, $ref_fn);
+						array_shift($params);
+					}
+				}
+				elseif($m_parts['name']===''){
+					$allows[]=$m_parts['method'];
+					if($m_parts['method']===$f_method){
+						if(!$route) $route=static::methodToRoute($path_class, $ref_fn);
+					}
 				}
 			}
 		}
-		return null;
+		if(count($allows)>0){
+			$allows=array_unique($allows);
+			Response::addHeaders([
+				'Allow'=>implode(', ', $allows),
+			]);
+			if(!$route){
+				throw new \AppException(\AppException::RESP_METHODNOTALLOWED, $f_method);
+			}
+		}
+		if(!$route){
+			throw new \AppException(\AppException::RESP_NOTFOUND, 'Function');
+		}
+		return $route;
 	}
 
 }

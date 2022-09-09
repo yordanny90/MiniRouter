@@ -1,4 +1,3 @@
 <?php
-if(defined('_SHAREDDIR_')) throw new ParseError('Shared already loaded');
-define('_SHAREDDIR_', __DIR__);
-\MiniRouter\classloader(_SHAREDDIR_.'/class');
+if(!define('SHARED_DIR', __DIR__)) throw new Exception('Shared already loaded', 1);
+\MiniRouter\classloader(SHARED_DIR.'/class');

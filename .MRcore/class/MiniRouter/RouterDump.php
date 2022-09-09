@@ -8,7 +8,7 @@ class RouterDump extends Router{
 	 * Antes de llamarlo se requiere {@see Router::loadEndPoint()}
 	 * @param null|string $method Filtrado por método
 	 * @return Route[]
-	 * @throws Exception
+	 * @throws RouteException
 	 */
 	public function dumpRoutes($method=null){
 		if(!$this->_endpoint_class)
@@ -23,7 +23,7 @@ class RouterDump extends Router{
 
 	public function dumpClasses(){
 		$all=[];
-		$this->_scanEndpoints(_APPDIR_.'/'.$this->main_namespace, $all);
+		$this->_scanEndpoints(APP_DIR.'/'.$this->main_namespace, $all);
 		return $all;
 	}
 

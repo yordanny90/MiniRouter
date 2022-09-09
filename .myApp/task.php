@@ -10,7 +10,7 @@ use MiniRouter\Router;
 require_once __DIR__.'/init.php';
 
 if(DUMP_ENDPOINTS && RequestCLI::getArgFlag('DUMP')){
-	include _APPDIR_.'/task_dump.php';
+	include APP_DIR.'/task_dump.php';
 	return;
 }
 try{
@@ -22,7 +22,7 @@ try{
 	//Router::$max_subdir=1;
 	//Router::$received_path=null;
 	//Router::$received_method='CLI';
-	$config=include _APPDIR_.'/dataset/task.php';
+	$config=include APP_DIR.'/dataset/task.php';
 	$router=new Router($config['namespace']);
 	unset($config);
 	$router->prepareForCLI();
@@ -33,6 +33,6 @@ try{
 	unset($config, $router);
 	// Se encontró la función que se ejecutará
 	$result=$route->call($route);
-}catch(\MiniRouter\Exception $e){
+}catch(\MiniRouter\RouteException $e){
 	$e->getResponse()->send();
 }
