@@ -23,7 +23,7 @@ class Request{
 	 * @return bool
 	 */
 	public static function isCLI(){
-		return (php_sapi_name()=='cli' && isset($_SERVER['argc']) && isset($_SERVER['argv']) && is_array($_SERVER['argv']));
+		return (php_sapi_name()=='cli' && isset($_SERVER['argc']) && is_array($_SERVER['argv']??null));
 	}
 
 	/**
@@ -50,19 +50,32 @@ class Request{
 	}
 
 	public static function getMethod(){
-		return (isset($_SERVER['REQUEST_METHOD'])?$_SERVER['REQUEST_METHOD']:'');
+		return $_SERVER['REQUEST_METHOD']??'';
 	}
 
 	public static function getScheme(){
-		return (isset($_SERVER['REQUEST_SCHEME'])?$_SERVER['REQUEST_SCHEME']:'');
+		return $_SERVER['REQUEST_SCHEME']??'';
 	}
 
 	public static function getPath(){
-		return isset($_SERVER['PATH_INFO'])?$_SERVER['PATH_INFO']:'';
+		if(($_SERVER['PATH_INFO']??'')!==''){
+			return $_SERVER['PATH_INFO'];
+		}
+		# Fix para nginx
+		$path_info=$_SERVER['REQUEST_URI']??'';
+		if(preg_match('/^'.preg_quote($_SERVER['SCRIPT_NAME']??'', '/').'(\/.*)$/', $path_info, $m)){
+			$path_info=$m[1];
+			if(preg_match('/^(\/.*)\?'.preg_quote(($_SERVER['QUERY_STRING']??''), '/').'$/', $path_info, $m)){
+				$path_info=$m[1];
+			}
+			$path_info=preg_replace('/\/{2,}/','/', urldecode($path_info));
+			return $path_info;
+		}
+		return null;
 	}
 
 	static function getContentType(){
-		$ct=(isset($_SERVER['CONTENT_TYPE'])?$_SERVER['CONTENT_TYPE']:'');
+		$ct=$_SERVER['CONTENT_TYPE']??'';
 		return trim(explode(';', $ct, 2)[0]);
 	}
 
@@ -86,10 +99,7 @@ class Request{
 	 */
 	static function getHeader($name){
 		$index='HTTP_'.strtoupper(str_replace('-', '_', $name));
-		if(isset($_SERVER[$index])){
-			return $_SERVER[$index];
-		}
-		return null;
+		return $_SERVER[$index]??null;
 	}
 
 }

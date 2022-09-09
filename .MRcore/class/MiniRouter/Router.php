@@ -58,14 +58,14 @@ class Router{
 	/**
 	 * Router constructor.
 	 * @param string $main_namespace
-	 * @throws Exception
+	 * @throws RouteException
 	 */
 	public function __construct(string $main_namespace){
 		$this->main_namespace=$main_namespace;
 	}
 
 	/**
-	 * @throws Exception
+	 * @throws RouteException
 	 */
 	public function prepareForHTTP(){
 		if(!is_null($this->_endpoint_class)){
@@ -86,7 +86,7 @@ class Router{
 	}
 
 	/**
-	 * @throws Exception
+	 * @throws RouteException
 	 */
 	public function prepareForCLI(){
 		if(!is_null($this->_endpoint_class)){
@@ -107,7 +107,7 @@ class Router{
 		if(!is_null($this->_endpoint_class) || !is_array($this->route_parts)){
 			return;
 		}
-		classloader(_APPDIR_, self::$endpoint_file_prefix, self::$endpoint_file_suffix, $this->main_namespace);
+		classloader(APP_DIR, self::$endpoint_file_prefix, self::$endpoint_file_suffix, $this->main_namespace);
 		$route_parts=array_values($this->route_parts);
 		$len=0;
 		do{
@@ -121,7 +121,7 @@ class Router{
 			$this->_endpoint_class=$class;
 			$this->_params=$route_parts;
 		}
-		else{
+		elseif(class_exists($this->main_namespace.'\\'.static::$missing_class)){
 			$this->_endpoint_class=$this->main_namespace.'\\'.static::$missing_class;
 			$this->_params=array_values($this->route_parts);
 		}
@@ -130,22 +130,16 @@ class Router{
 	/**
 	 * Antes de llamarlo se requiere {@see Router::loadEndPoint()}
 	 * @return Route
-	 * @throws Exception
+	 * @throws RouteException
 	 */
 	public function getRoute(){
 		if(!$this->_endpoint_class)
 			throw new \AppException(\AppException::RESP_NOTFOUND,'Class');
 		$params=$this->_params;
-		try{
-			$route=Route::getRoute($this->main_namespace, $this->_endpoint_class, static::$received_method, $params);
-		}catch(\ReflectionException $e){
-			throw new \AppException(\AppException::RESP_NOTFOUND,'Class', 0, $e);
-		}
-		if(is_null($route))
-			throw new \AppException(\AppException::RESP_NOTFOUND,'Function');
+		$route=Route::getRoute($this->main_namespace, $this->_endpoint_class, static::$received_method, $params);
 		$param_missing=$route->getReqParams()-count($params);
 		if($param_missing>0)
-			throw new \AppException(\AppException::RESP_MISSINGPARAM,$param_missing.' missing');
+			throw new \AppException(\AppException::RESP_NOTFOUND,'Params missing: '.$param_missing);
 		$route->exec_params=$params;
 		return $route;
 	}

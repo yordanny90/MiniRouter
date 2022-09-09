@@ -3,11 +3,12 @@
 namespace MiniRouter;
 
 class Response{
-	protected $http_code=200;
-	protected $content;
-	protected $extraHeaders=[];
-	protected $includeBuffer=false;
-	protected $closeConn=true;
+	private $http_code=200;
+	private $content;
+	private $extraHeaders=[];
+	private $include_buffer=false;
+	private $close_conn=true;
+	private $gz=false;
 
 	public function __construct($content_type=null){
 		$this->content_type($content_type);
@@ -21,10 +22,18 @@ class Response{
 		return ignore_user_abort($value);
 	}
 
-	public static function headers_sent(&$file=null, &$line=null){
-		return headers_sent($file, $line);
+	/**
+	 * Valida si los headers ya se enviaron
+	 * @return false|string
+	 */
+	public static function headers_sent(){
+		return headers_sent($file, $line)?$file.':'.$line:false;
 	}
 
+	/**
+	 * Obtiene la lista de headers de la respuesta
+	 * @return array
+	 */
 	public static function getHeaderList(){
 		$list=[];
 		foreach(headers_list() as $h){
@@ -37,10 +46,13 @@ class Response{
 
 	/**
 	 * Elimina todos los niveles del buffer y deja su contenido en un solo nivel para ser utilizado después
+	 * @param bool $gz Si es TRUE, habilita la compresión en gz
+	 * @return void
 	 */
-	public static function flatBuffer(){
+	public static function flatBuffer(bool $gz=false){
 		$b=self::getBuffer();
-		ob_start();
+		if($gz) ob_start('ob_gzhandler');
+		else ob_start();
 		echo $b;
 	}
 
@@ -93,52 +105,37 @@ class Response{
 	 * @return $this
 	 */
 	public function &includeBuffer($include){
-		$this->includeBuffer=boolval($include);
+		$this->include_buffer=boolval($include);
 		return $this;
 	}
 
 	/**
+	 * Habilita/Dehabilita el cierre de la conexión al enviar la respuesta
+	 *
+	 * Es incompatible con {@see Response::gz()}
 	 * @param bool $val
 	 * @return $this
 	 */
 	public function &closeConn($val){
-		$this->closeConn=boolval($val);
+		$this->close_conn=boolval($val);
+		if($this->close_conn) $this->gz=false;
 		return $this;
 	}
 
-	public function send(){
-		if(static::headers_sent()) return false;
-		if(!$this->includeBuffer) static::clearBuffer();
-		static::flatBuffer();
-		$this->flushContent();
-		static::addHeaders($this->extraHeaders);
-		if($this->closeConn){
-			header('Content-Length: '.ob_get_length(), true);
-			header('Connection: close', true);
-		}
-		http_response_code($this->http_code);
-		static::flushBuffer();
-		return true;
-	}
-
-	function &http_code($http_code){
-		if(is_int($http_code) && $http_code>0){
-			$this->http_code=$http_code;
-		}
+	/**
+	 * Habilita/Dehabilita la compresón con gz
+	 *
+	 * Es incompatible con {@see Response::closeConn()}
+	 * @param bool $val
+	 * @return $this
+	 */
+	public function &gz($val){
+		$this->gz=boolval($val);
+		if($this->gz) $this->close_conn=false;
 		return $this;
 	}
 
-	function &download(string $name='download.tmp'){
-		$this->extraHeaders['Content-Disposition']='attachment; filename='.$name;
-		return $this;
-	}
-
-	function &noDownload(){
-		unset($this->extraHeaders['Content-Disposition']);
-		return $this;
-	}
-
-	private function flushContent(){
+	protected function flushContent(){
 		if(is_string($this->content)){
 			echo $this->content;
 		}
@@ -149,30 +146,110 @@ class Response{
 		$this->content=null;
 	}
 
-	function hasContent(){
+	private function mergeContent(){
+		if(!$this->include_buffer) static::clearBuffer();
+		static::flatBuffer($this->gz);
+		$this->flushContent();
+	}
+
+	/**
+	 * Obtiene la respuesta completa y desactiva el buffer de salida
+	 * @return false|string
+	 * @see Response::send()
+	 */
+	public function getContent(){
+		$this->mergeContent();
+		return self::getBuffer();
+	}
+
+	/**
+	 * Envía la respuesta completa al cliente y desactiva el buffer de salida
+	 * @return bool
+	 */
+	public function send(){
+		if(static::headers_sent()){
+			return false;
+		}
+		static::addHeaders($this->extraHeaders);
+		$this->mergeContent();
+		if($this->close_conn){
+			header('Content-Length: '.ob_get_length(), true);
+			header('Connection: close', true);
+		}
+		http_response_code($this->http_code);
+		static::flushBuffer();
+		return true;
+	}
+
+	public function &httpCode($http_code){
+		if(is_int($http_code) && $http_code>0){
+			$this->http_code=$http_code;
+		}
+		return $this;
+	}
+
+	/**
+	 * @return int
+	 */
+	public function getHttpCode(): int{
+		return $this->http_code;
+	}
+
+	/**
+	 * @return bool
+	 */
+	public function isCloseConn(): bool{
+		return $this->close_conn;
+	}
+
+	/**
+	 * @return bool
+	 */
+	public function isGz(): bool{
+		return $this->gz;
+	}
+
+	/**
+	 * @return bool
+	 */
+	public function isIncludeBuffer(): bool{
+		return $this->include_buffer;
+	}
+
+	public function &download(string $name='download.tmp'){
+		$this->extraHeaders['Content-Disposition']='attachment; filename='.$name;
+		return $this;
+	}
+
+	public function &noDownload(){
+		unset($this->extraHeaders['Content-Disposition']);
+		return $this;
+	}
+
+	public function hasContent(){
 		return !is_null($this->content);
 	}
 
-	function &noContent(){
+	public function &noContent(){
 		$this->content=null;
-		$this->http_code(204);
+		$this->httpCode(204);
 		return $this;
 	}
 
-	function &content(string $content){
+	public function &content(string $content){
 		$this->content=$content;
-		$this->http_code(200);
+		$this->httpCode(200);
 		return $this;
 	}
 
-	function &contentFile(string $filename, $context=null){
+	public function &contentFile(string $filename, $context=null){
 		$res=fopen($filename, 'r', false, $context);
 		if(is_resource($res)){
 			$this->content=$res;
-			$this->http_code(200);
+			$this->httpCode(200);
 		}
 		$this->noContent();
-		$this->http_code(204);
+		$this->httpCode(204);
 		return $this;
 	}
 
@@ -180,13 +257,13 @@ class Response{
 	 * @param null|resource $res
 	 * @return $this
 	 */
-	function &contentResource($res){
+	public function &contentResource($res){
 		if(is_resource($res)){
 			$this->content=$res;
-			$this->http_code(200);
+			$this->httpCode(200);
 		}
 		$this->noContent();
-		$this->http_code(204);
+		$this->httpCode(204);
 		return $this;
 	}
 
@@ -196,7 +273,7 @@ class Response{
 	 * @param array $headers Lista de headers. Cada par ("key"=>"value") de la lista se enviará como el header "key: value"
 	 * @return $this
 	 */
-	function &headers(array $headers){
+	public function &headers(array $headers){
 		foreach($headers as $name=>$value){
 			if(is_null($value)) unset($this->extraHeaders[mb_convert_case(trim($name), MB_CASE_TITLE)]);
 			else $this->extraHeaders[mb_convert_case(trim($name), MB_CASE_TITLE)]=strval($value);
@@ -204,7 +281,7 @@ class Response{
 		return $this;
 	}
 
-	function &noCache(){
+	public function &noCache(){
 		return $this->cache(0);
 	}
 
@@ -212,7 +289,7 @@ class Response{
 	 * @param int $max_age Para desactivar la cache se establece en cero (0)
 	 * @return $this
 	 */
-	function &cache(int $max_age){
+	public function &cache(int $max_age){
 		if($max_age>0){
 			$this->extraHeaders['Cache-Control']='max-age='.$max_age;
 			unset($this->extraHeaders['Pragma']);
@@ -241,31 +318,31 @@ class Response{
 		return $this;
 	}
 
-	static function &r_file($filename, $context=null, $mime=null): self{
+	public static function &r_file($filename, $context=null, $mime=null): self{
 		return (new static($mime ?? 'application/octet-stream'))->contentFile($filename, $context);
 	}
 
-	static function &r_resource($resource, $mime=null): self{
+	public static function &r_resource($resource, $mime=null): self{
 		return (new static($mime ?? 'application/octet-stream'))->contentResource($resource);
 	}
 
-	static function &r_json($data): self{
+	public static function &r_json($data): self{
 		return (new static('application/json'))->content(json_encode($data));
 	}
 
-	static function &r_text(string $text): self{
+	public static function &r_text(string $text): self{
 		return (new static('text/plain'))->content($text);
 	}
 
-	static function &r_html(string $html): self{
+	public static function &r_html(string $html): self{
 		return (new static('text/html'))->content($html);
 	}
 
-	static function &r_redirect(string $location): self{
-		return (new static())->headers(['location'=>$location])->http_code(302)->noCache();
+	public static function &r_redirect(string $location): self{
+		return (new static())->headers(['location'=>$location])->httpCode(302)->noCache();
 	}
 
-	static function &r_empty(): self{
+	public static function &r_empty(): self{
 		return (new static())->noContent();
 	}
 

@@ -5,7 +5,7 @@ use MiniRouter\RouterDump;
 use MiniRouter\Response;
 
 try{
-	$config=include _APPDIR_.'/dataset/web.php';
+	$config=include APP_DIR.'/dataset/web.php';
 	$router=new RouterDump($config['namespace']);
 	$router->prepareForHTTP();
 	if(RouterDump::$received_path==''){
@@ -31,7 +31,7 @@ try{
 		])->send();
 		exit;
 	}
-}catch(\MiniRouter\Exception $e){
+}catch(\MiniRouter\RouteException $e){
 	$e->getResponse()->send();
 	exit;
 }

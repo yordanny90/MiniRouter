@@ -4,7 +4,7 @@ use MiniRouter\Route;
 use MiniRouter\RouterDump;
 
 try{
-	$config=include _APPDIR_.'/dataset/task.php';
+	$config=include APP_DIR.'/dataset/task.php';
 	$router=new RouterDump($config['namespace']);
 	$router->prepareForCLI();
 	if(empty(RouterDump::$received_path) || RouterDump::$received_path=='/'){
@@ -22,7 +22,7 @@ try{
 	}
 	exit;
 }
-catch(\MiniRouter\Exception $e){
+catch(\MiniRouter\RouteException $e){
 	$e->getResponse()->send();
 	exit;
 }
