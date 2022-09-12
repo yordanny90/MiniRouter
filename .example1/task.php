@@ -6,6 +6,7 @@ use MiniRouter\Router;
 // Habilitarlo para el ambiente de producción
 //error_reporting(0);
 
+define('BASE_DIR', __DIR__.'/..');
 // Se carga la librería del MiniRouter
 require_once __DIR__.'/init.php';
 
