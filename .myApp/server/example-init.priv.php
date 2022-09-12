@@ -1,5 +1,6 @@
 <?php
 # Copiar este archivo de ejemplo, removiendo "example-" del nombre
+define('APP_SCRIPT', ''); // Script base de la aplicación. Opcional si se accede por index.php
 define('BASE_URL', ''); // URL base de la aplicación
 define('TITLE', ''); // Título de la aplicación
 define('DUMP_ENDPOINTS', 0); // Habilita o deshabilita los listados de los endpoint

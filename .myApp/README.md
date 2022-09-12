@@ -1,14 +1,5 @@
-##Ejemplo 1
+## Código básico
 
-```PHP
+Este es el código inicial de una aplicación.
 
-namespace Web;
-
-use MiniRouter\Response;
-
-class index{
-    public function GET_(){
-        return Response::r_text('Esta es la página principal');
-    }
-}
-```
+Debe configurar el archivo [server/init.priv.php](server/init.priv.php) a partir de [server/example-init.priv.php](server/example-init.priv.php) para iniciar.
