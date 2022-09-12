@@ -23,6 +23,13 @@ class Response{
 	}
 
 	/**
+	 * @return bool
+	 */
+	public static function connection_aborted(){
+		return connection_aborted();
+	}
+
+	/**
 	 * Valida si los headers ya se enviaron
 	 * @return false|string
 	 */
@@ -173,8 +180,10 @@ class Response{
 		static::addHeaders($this->extraHeaders);
 		$this->mergeContent();
 		if($this->close_conn){
-			header('Content-Length: '.ob_get_length(), true);
+			$length=ob_get_length();
+			header('Content-Length: '.$length, true);
 			header('Connection: close', true);
+			if($length==0) echo "\0";
 		}
 		http_response_code($this->http_code);
 		static::flushBuffer();
@@ -232,13 +241,11 @@ class Response{
 
 	public function &noContent(){
 		$this->content=null;
-		$this->httpCode(204);
 		return $this;
 	}
 
 	public function &content(string $content){
 		$this->content=$content;
-		$this->httpCode(200);
 		return $this;
 	}
 
@@ -246,10 +253,8 @@ class Response{
 		$res=fopen($filename, 'r', false, $context);
 		if(is_resource($res)){
 			$this->content=$res;
-			$this->httpCode(200);
 		}
 		$this->noContent();
-		$this->httpCode(204);
 		return $this;
 	}
 
@@ -260,10 +265,8 @@ class Response{
 	public function &contentResource($res){
 		if(is_resource($res)){
 			$this->content=$res;
-			$this->httpCode(200);
 		}
 		$this->noContent();
-		$this->httpCode(204);
 		return $this;
 	}
 
@@ -343,7 +346,7 @@ class Response{
 	}
 
 	public static function &r_empty(): self{
-		return (new static())->noContent();
+		return (new static())->httpCode(204);
 	}
 
 }

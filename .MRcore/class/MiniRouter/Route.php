@@ -17,6 +17,8 @@ class Route{
 	 */
 	protected $ref;
 
+	private $infinite_params;
+
 	protected function __construct(\ReflectionMethod $ref){
 		$this->ref=$ref;
 	}
@@ -36,6 +38,19 @@ class Route{
 
 	public function getReqParams(){
 		return $this->ref->getNumberOfRequiredParameters();
+	}
+
+	public function getParams(){
+		return $this->ref->getNumberOfParameters();
+	}
+
+	public function isParamsInfinite(){
+		if(is_bool($this->infinite_params)) return $this->infinite_params;
+		$this->infinite_params=false;
+		foreach($this->ref->getParameters() AS $ref_par){
+			if($ref_par->isVariadic()) return $this->infinite_params=true;
+		}
+		return $this->infinite_params;
 	}
 
 	public function getUrlParams(){
@@ -68,7 +83,7 @@ class Route{
 	 */
 	public function call(...$args){
 		if(!$this->isCallable())
-			throw new \AppException(\AppException::RESP_EXECUTION, 'The route cannot be executed');
+			throw new RouteException('The route cannot be executed', RouteException::CODE_EXECUTION);
 		if($this->ref->isStatic()){
 			$res=forward_static_call_array([
 				$this->getClass(),
@@ -115,7 +130,7 @@ class Route{
 	 * @param string $fnName
 	 * @return array|null Si el nombre es válido devuelve un array con dos llaves: 'method' y 'name'
 	 */
-	public static function getMethodParts(string $fnName): ?array{
+	public static function getMethodParts(string $fnName){
 		if(preg_match('/^([A-Z]+)_(.*)$/', $fnName, $matches)){
 			return [
 				'method'=>$matches[1],
@@ -160,44 +175,52 @@ class Route{
 		try{
 			$ref_class=new \ReflectionClass($class);
 		}catch(\ReflectionException $e){
-			throw new \AppException(\AppException::RESP_NOTFOUND,'Class', 0, $e);
+			throw new RouteException('Class', RouteException::CODE_NOTFOUND, $e);
 		}
 		if(!$ref_class->isInstantiable()){
-			throw new \AppException(\AppException::RESP_NOTFOUND,'Non-instantiable class');
+			throw new RouteException('Class', RouteException::CODE_FORBIDDEN);
 		}
 		$path_class=self::class_to_path($main_namespace, $class);
 		$params=array_values($params);
 		$name=$params[0]??null;
 		$route=null;
 		$allows=[];
-		foreach($ref_class->getMethods(\ReflectionMethod::IS_PUBLIC) AS $ref_fn){
+		$forbidden=false;
+		foreach($ref_class->getMethods() AS $ref_fn){
 			if($m_parts=static::getMethodParts($ref_fn->getName())){
 				if($m_parts['name']===$name){
-					$allows[]=$m_parts['method'];
+					if($ref_fn->isPublic()) $allows[]=$m_parts['method'];
 					if($m_parts['method']===$f_method){
 						$route=static::methodToRoute($path_class, $ref_fn);
-						array_shift($params);
+						if($route) array_shift($params);
+						if(!$route) $forbidden=true;
 					}
 				}
 				elseif($m_parts['name']===''){
-					$allows[]=$m_parts['method'];
+					if($ref_fn->isPublic()) $allows[]=$m_parts['method'];
 					if($m_parts['method']===$f_method){
-						if(!$route) $route=static::methodToRoute($path_class, $ref_fn);
+						if(!$route){
+							$route=static::methodToRoute($path_class, $ref_fn);
+							if(!$route) $forbidden=true;
+						}
 					}
 				}
 			}
 		}
 		if(count($allows)>0){
+			if($forbidden){
+				throw new RouteException('Function', RouteException::CODE_FORBIDDEN);
+			}
 			$allows=array_unique($allows);
 			Response::addHeaders([
 				'Allow'=>implode(', ', $allows),
 			]);
 			if(!$route){
-				throw new \AppException(\AppException::RESP_METHODNOTALLOWED, $f_method);
+				throw new RouteException($f_method, RouteException::CODE_METHODNOTALLOWED);
 			}
 		}
 		if(!$route){
-			throw new \AppException(\AppException::RESP_NOTFOUND, 'Function');
+			throw new RouteException('Function', RouteException::CODE_NOTFOUND);
 		}
 		return $route;
 	}

@@ -72,9 +72,9 @@ class Router{
 			return;
 		}
 		if(Request::isCLI())
-			throw new \AppException(\AppException::RESP_EXECUTION, 'Execution by CLI is not allowed');
+			throw new RouteException('Execution by CLI is not allowed', RouteException::CODE_EXECUTION);
 		if(Response::headers_sent())
-			throw new \AppException(\AppException::RESP_EXECUTION,'Headers has been sent');
+			throw new RouteException('Headers has been sent', RouteException::CODE_EXECUTION);
 		if(is_null(static::$received_path))
 			static::$received_path=Request::getPath();
 		if(is_null(static::$received_method))
@@ -93,7 +93,7 @@ class Router{
 			return;
 		}
 		if(!Request::isCLI()){
-			throw new \AppException(\AppException::RESP_EXECUTION,'Only execution by CLI is allowed');
+			throw new RouteException('Only execution by CLI is allowed', RouteException::CODE_EXECUTION);
 		}
 		if(is_null(static::$received_path))
 			static::$received_path=RequestCLI::getArgText(0);
@@ -134,12 +134,15 @@ class Router{
 	 */
 	public function getRoute(){
 		if(!$this->_endpoint_class)
-			throw new \AppException(\AppException::RESP_NOTFOUND,'Class');
+			throw new RouteException('Class', RouteException::CODE_NOTFOUND);
 		$params=$this->_params;
 		$route=Route::getRoute($this->main_namespace, $this->_endpoint_class, static::$received_method, $params);
 		$param_missing=$route->getReqParams()-count($params);
 		if($param_missing>0)
-			throw new \AppException(\AppException::RESP_NOTFOUND,'Params missing: '.$param_missing);
+			throw new RouteException('Params missing: '.$param_missing, RouteException::CODE_NOTFOUND);
+		elseif($route->getParams()<count($params) && !$route->isParamsInfinite()){
+			throw new RouteException('Too many params', RouteException::CODE_NOTFOUND);
+		}
 		$route->exec_params=$params;
 		return $route;
 	}

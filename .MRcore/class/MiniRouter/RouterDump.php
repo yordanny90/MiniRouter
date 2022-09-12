@@ -12,11 +12,11 @@ class RouterDump extends Router{
 	 */
 	public function dumpRoutes($method=null){
 		if(!$this->_endpoint_class)
-			throw new \AppException(\AppException::RESP_NOTFOUND,'Class');
+			throw new RouteException('Class', RouteException::CODE_NOTFOUND);
 		try{
 			$routes=Route::getRoutes($this->main_namespace, $this->_endpoint_class, $method);
 		}catch(\ReflectionException $e){
-			throw new \AppException(\AppException::RESP_NOTFOUND,'Class', 0, $e);
+			throw new RouteException('Class', RouteException::CODE_NOTFOUND, $e);
 		}
 		return $routes;
 	}
