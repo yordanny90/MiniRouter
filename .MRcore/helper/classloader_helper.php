@@ -13,7 +13,7 @@ function classloader(string $rootdir, string $prefix='', string $suffix='.php', 
 	if($rootdir && is_dir($rootdir)){
 		$preg_namespace='//';
 		if(!empty($namespace)){
-			$preg_namespace='/^\\\\?'.preg_quote($namespace.'\\').'/';
+			$preg_namespace='/^\\\\?'.preg_quote($namespace.'\\').'.+/';
 		}
 		return spl_autoload_register(function($class_name) use ($rootdir, $prefix, $suffix, $preg_namespace){
 			if(!preg_match($preg_namespace, $class_name)) return;
