@@ -4,6 +4,7 @@ namespace MiniRouter;
 /**
  * Establece una carpeta desde la que se intenta cargar un class, trait o interface que aún no existe
  * @param string $rootdir
+ * @param string $prefix
  * @param string $suffix
  * @param string $namespace
  * @return bool
