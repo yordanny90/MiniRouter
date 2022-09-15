@@ -30,7 +30,7 @@ function classloader(string $rootdir, string $prefix='', string $suffix='.php', 
 					return;
 				}
 			}
-		});
+		}, true, !empty($namespace));
 	}
 	else{
 		return false;

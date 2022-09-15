@@ -14,6 +14,7 @@ class RouterDump extends Router{
 		if(!$this->_endpoint_class)
 			throw new RouteException('Class', RouteException::CODE_NOTFOUND);
 		try{
+			if($this->parentClass && !is_subclass_of($this->_endpoint_class, $this->parentClass)) throw new RouteException('Invalid class', RouteException::CODE_NOTFOUND);
 			$routes=Route::getRoutes($this->main_namespace, $this->_endpoint_class, $method);
 		}catch(\ReflectionException $e){
 			throw new RouteException('Class', RouteException::CODE_NOTFOUND, $e);

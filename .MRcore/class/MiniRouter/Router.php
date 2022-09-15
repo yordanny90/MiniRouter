@@ -3,6 +3,7 @@
 namespace MiniRouter;
 
 class Router{
+	public static $endpoint_dir='endpoints';
 	/**
 	 * @var string Prefijo de los archivos endpoint. Este prefijo no se indica en {@see Router::$received_path}
 	 */
@@ -39,6 +40,10 @@ class Router{
 	 */
 	protected $main_namespace;
 	/**
+	 * @var string Clase de la que deben extender los endpoint
+	 */
+	protected $parentClass;
+	/**
 	 * @var string Nombre completo de la clase del endpoint
 	 */
 	protected $_endpoint_class;
@@ -58,10 +63,12 @@ class Router{
 	/**
 	 * Router constructor.
 	 * @param string $main_namespace
+	 * @param string $parentClass Nombre de la clase o interface del que debe extender o implementar los endpoints
 	 * @throws RouteException
 	 */
-	public function __construct(string $main_namespace){
+	public function __construct(string $main_namespace, string $parentClass=''){
 		$this->main_namespace=$main_namespace;
+		$this->parentClass=$parentClass;
 	}
 
 	/**
@@ -107,7 +114,7 @@ class Router{
 		if(!is_null($this->_endpoint_class) || !is_array($this->route_parts)){
 			return;
 		}
-		classloader(APP_DIR, self::$endpoint_file_prefix, self::$endpoint_file_suffix, $this->main_namespace);
+		classloader(APP_DIR.'/'.self::$endpoint_dir, self::$endpoint_file_prefix, self::$endpoint_file_suffix, $this->main_namespace);
 		$route_parts=array_values($this->route_parts);
 		$len=0;
 		do{
@@ -136,6 +143,7 @@ class Router{
 		if(!$this->_endpoint_class)
 			throw new RouteException('Class', RouteException::CODE_NOTFOUND);
 		$params=$this->_params;
+		if($this->parentClass && !is_subclass_of($this->_endpoint_class, $this->parentClass)) throw new RouteException('Invalid class', RouteException::CODE_NOTFOUND);
 		$route=Route::getRoute($this->main_namespace, $this->_endpoint_class, static::$received_method, $params);
 		$param_missing=$route->getReqParams()-count($params);
 		if($param_missing>0)

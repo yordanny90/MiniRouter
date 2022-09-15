@@ -8,7 +8,7 @@ class RouteException extends \Exception{
 	const CODE_NOTFOUND=404;
 	const CODE_FORBIDDEN=403;
 
-	public function getResponse(): Response{
+	public function getResponse(){
 		if($this->code===self::CODE_METHODNOTALLOWED){
 			return Response::r_text('Method not allowed. '.PHP_EOL.$this->getMessage())->httpCode(405);
 		}

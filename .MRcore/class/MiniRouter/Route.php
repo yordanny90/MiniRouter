@@ -10,7 +10,7 @@ class Route{
 	/**
 	 * @var string Ruta válida del Endpoint
 	 */
-	public $path;
+	protected $path;
 
 	/**
 	 * @var \ReflectionMethod
@@ -21,6 +21,13 @@ class Route{
 
 	protected function __construct(\ReflectionMethod $ref){
 		$this->ref=$ref;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getPath(): string{
+		return $this->path;
 	}
 
 	public function getClass(){

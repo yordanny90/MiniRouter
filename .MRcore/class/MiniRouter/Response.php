@@ -284,26 +284,6 @@ class Response{
 		return $this;
 	}
 
-	public function &noCache(){
-		return $this->cache(0);
-	}
-
-	/**
-	 * @param int $max_age Para desactivar la cache se establece en cero (0)
-	 * @return $this
-	 */
-	public function &cache(int $max_age){
-		if($max_age>0){
-			$this->extraHeaders['Cache-Control']='max-age='.$max_age;
-			unset($this->extraHeaders['Pragma']);
-		}
-		else{
-			$this->extraHeaders['Cache-Control']='no-store, no-cache, must-revalidate, max-age=0';
-			$this->extraHeaders['Pragma']='no-cache';
-		}
-		return $this;
-	}
-
 	/**
 	 * @return array
 	 */
@@ -342,7 +322,7 @@ class Response{
 	}
 
 	public static function &r_redirect(string $location): self{
-		return (new static())->headers(['location'=>$location])->httpCode(302)->noCache();
+		return (new static())->headers(['location'=>$location])->httpCode(302);
 	}
 
 	public static function &r_empty(): self{
