@@ -8,23 +8,20 @@ Ya que sienta las bases para todas solicitudes por HTTP e incluso la ejecución 
 ## Ejemplos
 
 El código de los ejemplos está en:
-- [ejemplo1](.example1)
-- [ejemplo2](.example2)
-- [PHP de ejemplo1](example.php)
+- [Carpeta de ejemplos](.examples)
+- [PHP de ejemplo1](example1.php)
+- [PHP de ejemplo2](example2.php)
 
 Puede eliminarlos para limpiar su proyecto.
-
-Para probar el ejemplo de la carpeta [ejemplo1](.example1) puede comentar el `include` en el [index.php](index.php) y agregar:
-```php
-include BASE_DIR.'/.example1/web.php';
-```
 
 ---
 ## Que puedo modificar?
 
 Solo la carpeta [.MRcore](.MRcore) no debería ser alterada para evitar problemas durante una actualización de MiniRouter.
 
-Las carpetas [.myApp](.myApp) y [.shared](.shared), y su contenido, se pueden modificar segun la necesidad del desarrollo. Ya que su código y organización de carpetas, son un ejemplo de cómo debería ser usado MiniRouter.
+La carpeta [.myApp](.myApp) y su contenido, se pueden modificar segun la necesidad del desarrollo. Ya que su código y organización de carpetas, son un ejemplo de cómo debería ser usado MiniRouter.
+
+Ya que el objetivo de [.myApp](.myApp) es solo almacenar código de la aplicación, se recomienda crear otras carpetas en la raíz del proyecto con otros fines (como el almacenamiento de archivos)
 
 ---
 

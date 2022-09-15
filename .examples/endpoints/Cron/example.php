@@ -1,6 +1,6 @@
 <?php
 
-namespace Task;
+namespace Cron;
 
 use MiniRouter\RequestCLI;
 
