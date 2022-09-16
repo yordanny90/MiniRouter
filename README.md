@@ -6,7 +6,7 @@ Ya que sienta las bases para todas solicitudes por HTTP e incluso la ejecución 
 
 ## Requisitos mínimos
 
-- PHP 7.x/8.x
+- PHP 7.1+ o 8.0+
 
 ---
 ## Ejemplos
