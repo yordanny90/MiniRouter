@@ -4,6 +4,10 @@ Librería para el enrutamiento de los request entrantes y organización de códi
 Funciona como la base para iniciar el desarrollo de un sitio Web, API, microservicio, o cualquier otro tipo de aplicación.
 Ya que sienta las bases para todas solicitudes por HTTP e incluso la ejecución de jobs
 
+## Requisitos mínimos
+
+- PHP 7.x/8.x
+
 ---
 ## Ejemplos
 
@@ -14,7 +18,6 @@ El código de los ejemplos está en:
 
 Puede eliminarlos para limpiar su proyecto.
 
----
 ## Que puedo modificar?
 
 Solo la carpeta [.MRcore](.MRcore) no debería ser alterada para evitar problemas durante una actualización de MiniRouter.
