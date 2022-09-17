@@ -14,7 +14,14 @@ Ya que sienta las bases para todas solicitudes por HTTP e incluso la ejecución 
 El código de los ejemplos está en:
 - [Carpeta de ejemplos](.examples)
 - [PHP de ejemplo1](example1.php)
-- [PHP de ejemplo2](example2.php)
+
+Para ejecutar el cron(job) del ejemplo puede hacerlo con los comandos
+```shell
+php ./.examples/cron.php index
+php ./.examples/cron.php index/explain/param1/param2 val1="Valor 1" "val2=Valor 2" -xy -z --FlagA --FlagB "Texto de prueba"
+```
+
+Si el ejemplo (web) no funciona correctamente, debe corregir la constante `BASE_URL` en [.examples/server/init.priv.php](.examples/server/init.priv.php)
 
 Puede eliminarlos para limpiar su proyecto.
 

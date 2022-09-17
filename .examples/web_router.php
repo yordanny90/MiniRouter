@@ -1,14 +1,12 @@
 <?php
 
-use MiniRouter\Request;
 use MiniRouter\Router;
 use MiniRouter\Response;
 
 // Se carga la librería del MiniRouter
 require_once __DIR__.'/init.php';
-define('APP_SCRIPT', 'example2.php');
-define('APP_HREF', APP_SCRIPT.'/');
-define('APP_BASE_HREF', BASE_URL.APP_SCRIPT);
+define('APP_HREF', APP_SCRIPT==DEFAULT_SCRIPT?'':APP_SCRIPT.'/');
+define('APP_BASE_HREF', BASE_URL.rtrim(APP_HREF, '/'));
 Response::flatBuffer();
 try{
 	// Opciones avanzadas del Router
@@ -26,7 +24,8 @@ try{
 		'Access-Control-Allow-Headers'=>'Content-Type, Authorization, X-Requested-With',
 		//	'Content-Type'=>'text/plain',
 	]);
-	$router=new Router('example2');
+	$router=new Router('Web');
+	\MiniRouter\classloader(APP_DIR.'/endpoints', '', '.php', $router->getMainNamespace());
 	$router->prepareForHTTP();
 	$router->loadEndPoint();
 	// Se encontró la ruta del endpoint

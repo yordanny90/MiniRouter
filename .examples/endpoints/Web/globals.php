@@ -1,6 +1,6 @@
 <?php
 
-namespace Example1;
+namespace Web;
 
 class globals{
 	static function GET_(){

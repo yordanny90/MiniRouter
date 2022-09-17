@@ -1,6 +1,5 @@
 <?php
 
-use MiniRouter\RequestCLI;
 use MiniRouter\Router;
 
 // Habilitarlo para el ambiente de producción
@@ -9,31 +8,22 @@ use MiniRouter\Router;
 define('BASE_DIR', __DIR__.'/..');
 // Se carga la librería del MiniRouter
 require_once __DIR__.'/init.php';
-
-if(DUMP_ENDPOINTS && RequestCLI::getArgFlag('DUMP')){
-	include APP_DIR.'/task_dump.php';
-	return;
-}
-try{
-	// Opciones avanzadas del Router
-	//Router::$endpoint_file_prefix='';
-	//Router::$endpoint_file_suffix='.php';
-	//Router::$default_path='index';
-	//Router::$missing_class='';
-	//Router::$max_subdir=1;
-	//Router::$received_path=null;
-	//Router::$received_method='CLI';
-	$config=include APP_DIR.'/dataset/task.php';
-	$router=new Router($config['namespace']);
-	unset($config);
-	$router->prepareForCLI();
-	$router->loadEndPoint();
-	// Se encontró la ruta del endpoint
-	// Ya que se encontró la ruta. Aqui puede realizar validaciones de seguridad antes de ejecutar el endpoint
-	$route=$router->getRoute();
-	unset($config, $router);
-	// Se encontró la función que se ejecutará
-	$result=$route->call($route);
-}catch(\MiniRouter\RouteException $e){
-	$e->getResponse()->send();
-}
+//Response::flushBuffer();
+// Opciones avanzadas del Router
+//Router::$endpoint_file_prefix='';
+//Router::$endpoint_file_suffix='.php';
+//Router::$missing_class='';
+//Router::$max_subdir=1;
+//Router::$received_path=null;
+//Router::$received_method='CLI';
+$router=new Router('Cron');
+\MiniRouter\classloader(APP_DIR.'/endpoints', '', '.php', $router->getMainNamespace());
+$router->prepareForCLI();
+$router->loadEndPoint();
+// Se encontró la ruta del endpoint
+// Ya que se encontró la ruta. Aqui puede realizar validaciones de seguridad antes de ejecutar el endpoint
+global $ROUTE;
+$ROUTE=$router->getRoute();
+unset($router);
+// Se encontró la función que se ejecutará
+$ROUTE->call();
