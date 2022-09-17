@@ -3,37 +3,30 @@
 namespace MiniRouter;
 
 class Router{
-	public static $endpoint_dir='endpoints';
 	/**
-	 * @var string Prefijo de los archivos endpoint. Este prefijo no se indica en {@see Router::$received_path}
+	 * @var string Dirección del enpoint utilizada si {@see Router::$received_path} esta vacío.
+	 *
+	 * Solo aplica para endpoints HTTP (@see Router::prepareForHTTP())
 	 */
-	public static $endpoint_file_prefix='';
-	/**
-	 * @var string Sufijo de los archivos endpoint. Este sufijo no se indica en {@see Router::$received_path}
-	 */
-	public static $endpoint_file_suffix='.php';
-	/**
-	 * @var string Dirección del enpoint utilizada si {@see Router::$received_path} esta vacío
-	 */
-	public static $default_path='index';
+	public $default_path='index';
 	/**
 	 * @var string Nombre de la clase que se carga cuando no se encuentra la solicitada
 	 */
-	public static $missing_class='';
+	public $missing_class='';
 	/**
 	 * >Cuantas más subcarpetas se permitan, menor será la eficiencia de la búsqueda
 	 * @var int Deterina el máximo de subcarpetas permitidos en la búsqueda del endpoint.<br>
 	 * Cada subcarpeta debe ser parte del namespace de la clase del endpoint, empezando por {@see Router::$main_namespace}
 	 */
-	public static $max_subdir=1;
+	public $max_subdir=1;
 	/**
 	 * @var string|null Indica la ruta recibida para la ejecución del endpoint. Si es null, el sistema la detectará auntomáticamente
 	 */
-	public static $received_path;
+	public $received_path;
 	/**
 	 * @var string|null Indica el método por el que se ejecuta la ruta recibida. Si es null, el sistema la detectará auntomáticamente
 	 */
-	public static $received_method;
+	public $received_method;
 
 	/**
 	 * @var string El namespace al que deben pertenecer las clases de los endpoint
@@ -57,7 +50,7 @@ class Router{
 	protected $route_parts;
 
 	protected static function fixPath($path){
-		return trim($path, " \t\n\r\0\x0B/");
+		return trim($path, '/');
 	}
 
 	/**
@@ -89,13 +82,13 @@ class Router{
 			throw new RouteException('Execution by CLI is not allowed', RouteException::CODE_EXECUTION);
 		if(Response::headers_sent())
 			throw new RouteException('Headers has been sent', RouteException::CODE_EXECUTION);
-		if(is_null(static::$received_path))
-			static::$received_path=Request::getPath();
-		if(is_null(static::$received_method))
-			static::$received_method=Request::getMethod();
-		$path=self::fixPath(static::$received_path);
+		if(is_null($this->received_path))
+			$this->received_path=Request::getPath();
+		if(is_null($this->received_method))
+			$this->received_method=Request::getMethod();
+		$path=self::fixPath($this->received_path);
 		if($path==='')
-			$path=self::fixPath(static::$default_path);
+			$path=self::fixPath($this->default_path);
 		$this->route_parts=array_diff(explode('/', $path), ['', '.', '..']);
 	}
 
@@ -109,11 +102,11 @@ class Router{
 		if(!Request::isCLI()){
 			throw new RouteException('Only execution by CLI is allowed', RouteException::CODE_EXECUTION);
 		}
-		if(is_null(static::$received_path))
-			static::$received_path=RequestCLI::getArgText(0);
-		if(is_null(static::$received_method))
-			static::$received_method='CLI';
-		$path=self::fixPath(static::$received_path);
+		if(is_null($this->received_path))
+			$this->received_path=RequestCLI::getArgText(0);
+		if(is_null($this->received_method))
+			$this->received_method='CLI';
+		$path=self::fixPath($this->received_path);
 		$this->route_parts=array_diff(explode('/', $path), ['', '.', '..']);
 	}
 
@@ -129,13 +122,13 @@ class Router{
 				$route_parts=array_slice($route_parts, $len);
 				break;
 			}
-		}while(!$class_found && count($route_parts)>$len && $len<=static::$max_subdir);
+		}while(!$class_found && count($route_parts)>$len && $len<=$this->max_subdir);
 		if($class_found){
 			$this->_endpoint_class=$class;
 			$this->_params=$route_parts;
 		}
-		elseif(class_exists($this->main_namespace.'\\'.static::$missing_class)){
-			$this->_endpoint_class=$this->main_namespace.'\\'.static::$missing_class;
+		elseif(class_exists($this->main_namespace.'\\'.$this->missing_class)){
+			$this->_endpoint_class=$this->main_namespace.'\\'.$this->missing_class;
 			$this->_params=array_values($this->route_parts);
 		}
 	}
@@ -151,17 +144,104 @@ class Router{
 	public function getRoute(bool $strict_parrams=true){
 		if(!$this->_endpoint_class)
 			throw new RouteException('Class', RouteException::CODE_NOTFOUND);
-		$params=$this->_params;
-		if($this->parentClass && !is_subclass_of($this->_endpoint_class, $this->parentClass)) throw new RouteException('Invalid class', RouteException::CODE_NOTFOUND);
-		$route=Route::getRoute($this->main_namespace, $this->_endpoint_class, static::$received_method, $params);
+		try{
+			$ref_class=new \ReflectionClass($this->_endpoint_class);
+		}catch(\ReflectionException $e){
+			throw new RouteException('Class', RouteException::CODE_NOTFOUND, $e);
+		}
+		if($this->parentClass && !$ref_class->isSubclassOf($this->parentClass)) throw new RouteException('Invalid class', RouteException::CODE_NOTFOUND);
+		if(!$ref_class->isInstantiable()){
+			throw new RouteException('Class', RouteException::CODE_FORBIDDEN);
+		}
+		$path_class=static::class_to_path($this->main_namespace, $this->_endpoint_class);
+		$params=array_values($this->_params);
+		$f_method=$this->received_method;
+		$name=$params[0]??null;
+		$route=null;
+		$allows=[];
+		foreach($ref_class->getMethods(\ReflectionMethod::IS_PUBLIC) AS $ref_fn){
+			if($m_parts=static::getMethodParts($ref_fn->getName())){
+				if($m_parts['name']===$name){
+					$allows[]=$m_parts['method'];
+					if($m_parts['method']===$f_method){
+						$route=Route::create($path_class, $ref_fn);
+						if($route) array_shift($params);
+					}
+				}
+				elseif($m_parts['name']===''){
+					$allows[]=$m_parts['method'];
+					if(!$route && $m_parts['method']===$f_method){
+						$route=Route::create($path_class, $ref_fn);
+					}
+				}
+			}
+		}
+		if(!$route){
+			if(count($allows)>0) throw new RouteException($f_method, RouteException::CODE_METHODNOTALLOWED);
+			throw new RouteException('Function', RouteException::CODE_NOTFOUND);
+		}
+		$route->setAllows($allows);
 		$param_missing=$route->getReqParams()-count($params);
-		if($param_missing>0)
-			throw new RouteException('Params missing: '.$param_missing, RouteException::CODE_NOTFOUND);
+		if($param_missing>0) throw new RouteException('Params missing: '.$param_missing, RouteException::CODE_NOTFOUND);
 		elseif($strict_parrams && $route->getParams()<count($params) && !$route->isParamsInfinite()){
 			throw new RouteException('Too many params', RouteException::CODE_NOTFOUND);
 		}
 		$route->exec_params=$params;
 		return $route;
+	}
+
+	/**
+	 * @param string $main_namespace
+	 * @param string $class
+	 * @return array
+	 * @throws RouteException
+	 */
+	public function getRouteList(){
+		if(!$this->_endpoint_class)
+			throw new RouteException('Class', RouteException::CODE_NOTFOUND);
+		if($this->parentClass && !is_subclass_of($this->_endpoint_class, $this->parentClass)) throw new RouteException('Invalid class', RouteException::CODE_NOTFOUND);
+		$main_namespace=$this->main_namespace;
+		$class=$this->_endpoint_class;
+		try{
+			$ref_class=new \ReflectionClass($class);
+		}catch(\ReflectionException $e){
+			throw new RouteException('Class', RouteException::CODE_NOTFOUND, $e);
+		}
+		if(!$ref_class->isInstantiable()){
+			throw new RouteException('Class', RouteException::CODE_FORBIDDEN);
+		}
+		$path_class=static::class_to_path($main_namespace, $class);
+		$routes=[];
+		foreach($ref_class->getMethods(\ReflectionMethod::IS_PUBLIC) AS $ref_fn){
+			if($r=Route::create($path_class, $ref_fn)){
+				$routes[]=$r;
+			}
+		}
+		return $routes;
+	}
+
+	public static function class_to_path($main_namespace, $class){
+		if(substr($class,0,strlen($main_namespace))==$main_namespace){
+			$path_class=substr($class, strlen($main_namespace));
+		}
+		else{
+			$path_class=$class;
+		}
+		return ltrim(str_replace('\\', '/', $path_class), '/');
+	}
+
+	/**
+	 * @param string $fnName
+	 * @return array|null Si el nombre es válido devuelve un array con dos llaves: 'method' y 'name'
+	 */
+	public static function getMethodParts(string $fnName){
+		if(preg_match('/^([A-Z]+)_(.*)$/', $fnName, $matches)){
+			return [
+				'method'=>$matches[1],
+				'name'=>$matches[2]
+			];
+		}
+		return null;
 	}
 
 }
