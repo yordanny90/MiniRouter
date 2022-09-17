@@ -33,6 +33,9 @@ La carpeta [.myApp](.myApp) y su contenido, se pueden modificar segun la necesid
 
 Ya que el objetivo de [.myApp](.myApp) es solo almacenar código de la aplicación, se recomienda crear otras carpetas en la raíz del proyecto con otros fines (como el almacenamiento de archivos)
 
+El uso de la carpeta [.lib_class](.lib_class) es opcional. Ya que son librerías extra del proyecto, pero no son requeridas para su funcionamiento básico.
+Puede habilitar el uso de esas librerías modificando el archivo [.myApp/init.php](.myApp/init.php)
+
 ---
 
 ### Esta versión aún está en desarrollo. ###

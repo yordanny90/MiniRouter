@@ -5,3 +5,4 @@ if(!define('APP_DIR', __DIR__)) throw new Exception('App already loaded', 1);
 require APP_DIR.'/server/init.priv.php'; // Configuración propia del servidor
 require_once BASE_DIR.'/.MRcore/MRloader.php';
 \MiniRouter\classloader(APP_DIR.'/class');
+//\MiniRouter\classloader(BASE_DIR.'/.lib_class');
