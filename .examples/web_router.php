@@ -10,13 +10,6 @@ define('APP_BASE_HREF', BASE_URL.rtrim(APP_HREF, '/'));
 Response::flatBuffer();
 try{
 	// Opciones avanzadas del Router
-	//Router::$endpoint_file_prefix='';
-	//Router::$endpoint_file_suffix='.php';
-	//Router::$default_path='index';
-	//Router::$missing_class='';
-	//Router::$max_subdir=1;
-	//Router::$received_path=Request::getPath();
-	//Router::$received_method=Request::getMethod();
 	Response::addHeaders([
 		'Access-Control-Allow-Origin'=>'*',
 		'Access-Control-Allow-Credentials'=>'true',
@@ -25,7 +18,12 @@ try{
 		//	'Content-Type'=>'text/plain',
 	]);
 	$router=new Router('Web');
-	\MiniRouter\classloader(APP_DIR.'/endpoints', '', '.php', $router->getMainNamespace());
+	\MiniRouter\classloader(APP_DIR.'/endpoints', '', '.php', $router->getMainNamespace(), true);
+	//$router->default_path='index';
+	//$router->missing_class='';
+	//$router->max_subdir=1;
+	//$router->received_path=Request::getPath();
+	//$router->received_method=Request::getMethod();
 	$router->prepareForHTTP();
 	$router->loadEndPoint();
 	// Se encontró la ruta del endpoint

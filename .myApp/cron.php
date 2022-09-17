@@ -6,20 +6,17 @@ use MiniRouter\Router;
 // Habilitarlo para el ambiente de producción
 //error_reporting(0);
 
-define('BASE_DIR', __DIR__.'/..');
+define('BASE_DIR', realpath(__DIR__.'/..'));
 // Se carga la librería del MiniRouter
 require_once __DIR__.'/init.php';
 Response::flushBuffer();
 // Opciones avanzadas del Router
-//Router::$endpoint_file_prefix='';
-//Router::$endpoint_file_suffix='.php';
-//Router::$default_path='index';
-//Router::$missing_class='';
-//Router::$max_subdir=1;
-//Router::$received_path=null;
-//Router::$received_method='CLI';
 $router=new Router('Cron');
-\MiniRouter\classloader(APP_DIR.'/endpoints', '', '.php', $router->getMainNamespace());
+\MiniRouter\classloader(APP_DIR.'/endpoints', '', '.php', $router->getMainNamespace(), true);
+//$router->missing_class='';
+//$router->max_subdir=1;
+//$router->received_path=\MiniRouter\RequestCLI::getArgText(0);
+//Router::$received_method='CLI';
 $router->prepareForCLI();
 $router->loadEndPoint();
 // Se encontró la ruta del endpoint

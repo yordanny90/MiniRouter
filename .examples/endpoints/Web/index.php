@@ -38,16 +38,14 @@ class index{
 		return \AppResponse::r_html('')->includeBuffer(1);
 	}
 
-	function GET_this(){
+	function GET_this(...$_){
 		$this->method=Request::getMethod();
 		$this->path=Request::getPath();
-		$this->headers=[
-			'Request'=>Request::getAllHeaders(),
-			'Response'=>Response::getHeaderList(),
-		];
+		$this->headerRequest=Request::getAllHeaders();
+		$this->headerResponse=Response::getHeaderList();
 		if(count($_GET)) $this->get=$_GET;
-		print_r($this);
-		return Response::r_text('')->includeBuffer(true)->gz(1);
+		echo '<pre>'.htmlentities(print_r($this, 1)).'</pre>';
+		return \AppResponse::r_html('')->includeBuffer(true)->gz(1);
 	}
 
 }
