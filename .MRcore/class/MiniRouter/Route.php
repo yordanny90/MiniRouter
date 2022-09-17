@@ -16,6 +16,12 @@ class Route{
 	 * @var \ReflectionMethod
 	 */
 	protected $ref;
+	/**
+	 * @var bool Indica si la ejecución está en curso.
+	 *
+	 * Una vez terminada, vuelve a ser false
+	 */
+	protected $started=false;
 
 	private $infinite_params;
 
@@ -34,7 +40,7 @@ class Route{
 		return $this->ref->class;
 	}
 
-	public function getInstance(...$args){
+	protected function getInstance(...$args){
 		$class=$this->getClass();
 		return new $class(...$args);
 	}
@@ -89,21 +95,25 @@ class Route{
 	 * @throws RouteException
 	 */
 	public function call(...$args){
+		if($this->started) return false;
 		if(!$this->isCallable())
 			throw new RouteException('The route cannot be executed', RouteException::CODE_EXECUTION);
 		if($this->ref->isStatic()){
+			$this->started=true;
 			$res=forward_static_call_array([
 				$this->getClass(),
 				$this->getFunction()
 			], $this->exec_params);
 		}
 		else{
+			$this->started=true;
 			$obj=$this->getInstance(...$args);
 			$res=call_user_func_array([
 				$obj,
 				$this->getFunction()
 			], $this->exec_params);
 		}
+		$this->started=false;
 		return $res;
 	}
 
@@ -127,7 +137,7 @@ class Route{
 		$path_class=str_replace('\\', '/', $path_class);
 		if($ref_fn->isPublic() && ($parts=static::getMethodParts($ref_fn->getName()))){
 			$r=new static($ref_fn);
-			$r->path=$path_class.(strlen($parts['name'])?'/'.$parts['name']:'');
+			$r->path=ltrim($path_class.(strlen($parts['name'])?'/'.$parts['name']:''), '/');
 			return $r;
 		}
 		return null;

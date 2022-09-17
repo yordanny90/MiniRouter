@@ -9,7 +9,7 @@ namespace MiniRouter;
  * @param string $namespace
  * @return bool
  */
-function classloader(string $rootdir, string $prefix='', string $suffix='.php', string $namespace=''){
+function classloader(string $rootdir, string $prefix='', string $suffix='.php', string $namespace='', bool $prepend=false){
 	$rootdir=realpath($rootdir);
 	if($rootdir && is_dir($rootdir)){
 		$preg_namespace='//';
@@ -30,7 +30,7 @@ function classloader(string $rootdir, string $prefix='', string $suffix='.php', 
 					return;
 				}
 			}
-		}, true, !empty($namespace));
+		}, true, $prepend || !empty($namespace));
 	}
 	else{
 		return false;

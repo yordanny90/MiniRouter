@@ -72,6 +72,13 @@ class Router{
 	}
 
 	/**
+	 * @return string
+	 */
+	public function getMainNamespace(): string{
+		return $this->main_namespace;
+	}
+
+	/**
 	 * @throws RouteException
 	 */
 	public function prepareForHTTP(){
@@ -114,7 +121,6 @@ class Router{
 		if(!is_null($this->_endpoint_class) || !is_array($this->route_parts)){
 			return;
 		}
-		classloader(APP_DIR.'/'.self::$endpoint_dir, self::$endpoint_file_prefix, self::$endpoint_file_suffix, $this->main_namespace);
 		$route_parts=array_values($this->route_parts);
 		$len=0;
 		do{
@@ -136,10 +142,13 @@ class Router{
 
 	/**
 	 * Antes de llamarlo se requiere {@see Router::loadEndPoint()}
+	 * @param bool $strict_parrams Default: true. Valida que los parámetros recibidos no excedan los esperados.
+	 *
+	 * Aunque se deshabilite seguira validando que cumpla con los parámetros mínimos
 	 * @return Route
 	 * @throws RouteException
 	 */
-	public function getRoute(){
+	public function getRoute(bool $strict_parrams=true){
 		if(!$this->_endpoint_class)
 			throw new RouteException('Class', RouteException::CODE_NOTFOUND);
 		$params=$this->_params;
@@ -148,7 +157,7 @@ class Router{
 		$param_missing=$route->getReqParams()-count($params);
 		if($param_missing>0)
 			throw new RouteException('Params missing: '.$param_missing, RouteException::CODE_NOTFOUND);
-		elseif($route->getParams()<count($params) && !$route->isParamsInfinite()){
+		elseif($strict_parrams && $route->getParams()<count($params) && !$route->isParamsInfinite()){
 			throw new RouteException('Too many params', RouteException::CODE_NOTFOUND);
 		}
 		$route->exec_params=$params;

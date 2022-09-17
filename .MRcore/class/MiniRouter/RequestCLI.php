@@ -8,7 +8,8 @@ namespace MiniRouter;
  */
 class RequestCLI{
 	const REGEX_ARG_VAR='/^([^:=]+)[:=]((?:.|\s)*)$/';
-	const REGEX_ARG_FLAG='/^\-(\w+|.)$/';
+	const REGEX_ARG_FLAG='/^\-(\w+)$/';
+	const REGEX_ARG_FLAG_LONG='/^\-\-(\w+)$/';
 
 	public static function &getArgs(){
 		if(isset($_SERVER['argv'])) $args=$_SERVER['argv'];
@@ -55,6 +56,9 @@ class RequestCLI{
 		$list=[];
 		foreach(static::getArgs() AS $i=>$arg){
 			if($i>0 && preg_match(static::REGEX_ARG_FLAG, $arg, $matches)){
+				$list=array_merge($list, array_fill_keys(str_split($matches[1]),true));
+			}
+			elseif($i>0 && preg_match(static::REGEX_ARG_FLAG_LONG, $arg, $matches)){
 				$list[$matches[1]]=true;
 			}
 		}
@@ -64,7 +68,7 @@ class RequestCLI{
 	public static function &getArgsText(){
 		$list=[];
 		foreach(static::getArgs() AS $i=>$arg){
-			if($i>0 && !preg_match(static::REGEX_ARG_VAR, $arg) && !preg_match(static::REGEX_ARG_FLAG, $arg)){
+			if($i>0 && !preg_match(static::REGEX_ARG_VAR, $arg) && !preg_match(static::REGEX_ARG_FLAG, $arg) && !preg_match(static::REGEX_ARG_FLAG_LONG, $arg)){
 				$list[]=$arg;
 			}
 		}
