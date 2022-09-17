@@ -9,16 +9,16 @@ use MiniRouter\Response;
  *
  */
 class index{
-	static function GET_(){
+	static function GET_(...$_){
 		echo '<h1>Esto es un ejemplo</h1>';
 		echo '<pre>'.htmlentities(print_r(include APP_DIR.'/dataset/example.php', 1)).'</pre>';
 		?>
-		<div><a href="index/info">info</a></div>
-		<div><a href="index/ini">php.ini</a></div>
-		<div><a href="index/ini/json">php.ini (JSON)</a></div>
-		<div><a href="index/ini/json/1">php.ini (download JSON)</a></div>
-		<div><a href="index/this">this</a></div>
-		<div><a href="index/globals">globals</a></div>
+		<div><a href="<?=APP_HREF?>index/info">info</a></div>
+		<div><a href="<?=APP_HREF?>index/ini">php.ini</a></div>
+		<div><a href="<?=APP_HREF?>index/ini/json">php.ini (JSON)</a></div>
+		<div><a href="<?=APP_HREF?>index/ini/json/1">php.ini (download JSON)</a></div>
+		<div><a href="<?=APP_HREF?>index/this">this</a></div>
+		<div><a href="<?=APP_HREF?>globals">globals</a></div>
 		<?php
 		return \AppResponse::r_html('')->includeBuffer(1)->gz(1);
 	}
@@ -38,20 +38,14 @@ class index{
 		return \AppResponse::r_html('')->includeBuffer(1);
 	}
 
-	function GET_this(){
+	function GET_this(...$_){
 		$this->method=Request::getMethod();
 		$this->path=Request::getPath();
-		$this->headers=[
-			'Request'=>Request::getAllHeaders(),
-			'Response'=>Response::getHeaderList(),
-		];
+		$this->headerRequest=Request::getAllHeaders();
+		$this->headerResponse=Response::getHeaderList();
 		if(count($_GET)) $this->get=$_GET;
-		print_r($this);
-		return Response::r_text('')->includeBuffer(true)->gz(1);
+		echo '<pre>'.htmlentities(print_r($this, 1)).'</pre>';
+		return \AppResponse::r_html('')->includeBuffer(true)->gz(1);
 	}
 
-	static function GET_globals(){
-		echo print_r($GLOBALS, 1);
-		return Response::r_text('')->includeBuffer(true)->closeConn(1);
-	}
 }

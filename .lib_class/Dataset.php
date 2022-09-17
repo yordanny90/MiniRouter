@@ -1,7 +1,5 @@
 <?php
 
-namespace MiniRouter;
-
 class Dataset implements \JsonSerializable{
 	protected $file;
 

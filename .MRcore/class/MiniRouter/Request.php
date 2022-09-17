@@ -74,6 +74,10 @@ class Request{
 		return null;
 	}
 
+	public static function getQuery(){
+		return $_SERVER['QUERY_STRING']??'';
+	}
+
 	static function getContentType(){
 		$ct=$_SERVER['CONTENT_TYPE']??'';
 		return trim(explode(';', $ct, 2)[0]);
