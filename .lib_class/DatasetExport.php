@@ -1,7 +1,5 @@
 <?php
 
-namespace MiniRouter;
-
 /**
  * Class DatasetExport
  * Clase para la creación de archivos PHP que retorna un dato/valor
