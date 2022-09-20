@@ -103,7 +103,7 @@ class Router{
 			throw new RouteException('Only execution by CLI is allowed', RouteException::CODE_EXECUTION);
 		}
 		if(is_null($this->received_path))
-			$this->received_path=RequestCLI::getArgText(0);
+			$this->received_path=ArgCLI::getText(0);
 		if(is_null($this->received_method))
 			$this->received_method='CLI';
 		$path=self::fixPath($this->received_path);
