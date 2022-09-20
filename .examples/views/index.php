@@ -4,7 +4,7 @@ global $ROUTE;
 <html>
 <head>
 	<title><?=TITLE?></title>
-	<base href="<?=APP_BASE_HREF?>">
+	<base href="<?=$_SERVER['SCRIPT_NAME']?>">
 	<meta charset="<?=ini_get('default_charset')?>">
 </head>
 <body>
@@ -17,5 +17,16 @@ global $ROUTE;
 	?>
 </pre>
 <div><?=$content ?? ''?></div>
+<script type="application/javascript">
+	// Previene la redirección con hashtags
+	document.addEventListener('click', function(event){
+		if(event.prevented) return;
+		if(event.target.tagName!='A') return;
+		var href=event.target.getAttribute('href');
+		if(!(/^#/.exec(href))) return;
+		event.preventDefault();
+		window.location.hash=href;
+	});
+</script>
 </body>
 </html>

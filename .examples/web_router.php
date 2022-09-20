@@ -3,10 +3,9 @@
 use MiniRouter\Router;
 use MiniRouter\Response;
 
+if(!define('APP_SCRIPT', basename($_SERVER['SCRIPT_NAME']))) throw new Exception('APP already loaded', 1);
 // Se carga la librería del MiniRouter
 require_once __DIR__.'/init.php';
-define('APP_HREF', APP_SCRIPT==DEFAULT_SCRIPT?'':APP_SCRIPT.'/');
-define('APP_BASE_HREF', BASE_URL.rtrim(APP_HREF, '/'));
 Response::flatBuffer();
 try{
 	// Opciones avanzadas del Router
