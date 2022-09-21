@@ -2,7 +2,7 @@
 
 namespace Cron;
 
-use MiniRouter\RequestCLI;
+use MiniRouter\ArgCLI;
 
 class index{
 	static function CLI_(){
@@ -19,15 +19,15 @@ class index{
 			echo '  '.$v.PHP_EOL;
 		}
 		echo 'Flags:',PHP_EOL;
-		foreach(RequestCLI::getArgsFlags() AS $k=>$v){
-			echo '  '.$k.PHP_EOL;
+		foreach(ArgCLI::getFlags() AS $v){
+			echo '  '.$v.PHP_EOL;
 		}
 		echo 'Vars:',PHP_EOL;
-		foreach(RequestCLI::getArgsVars() AS $k=>$v){
+		foreach(ArgCLI::getVariables() AS $k=>$v){
 			echo '  '.$k.'='.var_export($v, 1).PHP_EOL;
 		}
 		echo 'Texts:',PHP_EOL;
-		foreach(RequestCLI::getArgsText() AS $k=>$v){
+		foreach(ArgCLI::getText() AS $v){
 			echo '  '.var_export($v, 1).PHP_EOL;
 		}
 	}
