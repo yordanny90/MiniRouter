@@ -10,7 +10,7 @@ namespace MiniRouter;
  * @return bool
  */
 function classloader(string $rootdir, string $prefix='', string $suffix='.php', string $namespace='', bool $prepend=false){
-	$rootdir=realpath($rootdir);
+	$rootdir=realpath($rootdir)?:$rootdir;
 	if($rootdir && is_dir($rootdir)){
 		$preg_namespace=null;
 		if(!empty($namespace)){
