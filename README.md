@@ -27,7 +27,7 @@ Puede eliminarlos para limpiar su proyecto.
 
 ## Que puedo modificar?
 
-Solo la carpeta [.MRcore](.MRcore) no debería ser alterada para evitar problemas durante una actualización de MiniRouter.
+Solo el archivo [.MRcore.phar.gz](.MRcore.phar.gz) no debería ser alterada para evitar problemas durante una actualización de MiniRouter.
 
 La carpeta [.myApp](.myApp) y su contenido, se pueden modificar segun la necesidad del desarrollo. Ya que su código y organización de carpetas, son un ejemplo de cómo debería ser usado MiniRouter.
 

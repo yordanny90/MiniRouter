@@ -21,4 +21,23 @@ class RouteException extends \Exception{
 		return Response::r_text('Execution error. '.PHP_EOL.$this->getMessage())->httpCode(500);
 	}
 
+	public static function simpleTrace(\Throwable $e, $lvl=0){
+		$tab=str_repeat('    ', $lvl);
+		$trace=$tab.get_class($e).' '.$e->getCode().'. '.$e->getMessage().PHP_EOL;
+		foreach($e->getTrace() AS $i=>$l){
+			$trace.=$tab.'#'.$i.' '.basename($l['file']??'?').'('.basename($l['line']??'?').'): '.($l['class']??'').($l['type']??'').($l['function']??'').'(';
+			if(is_array($l['args']??null)){
+				$trace.=implode(', ',array_map(function(&$d){
+					$type=gettype($d);
+					if($type==='object') $type=get_class($d);
+					return $type;
+				}, $l['args']));
+			}
+			$trace.=')'.PHP_EOL;
+		}
+		if($e->getPrevious() && $lvl<10){
+			$trace.=self::simpleTrace($e->getPrevious(), $lvl+1);
+		}
+		return $trace;
+	}
 }
