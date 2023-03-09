@@ -9,8 +9,8 @@ class index{
 		global $ROUTE;
 		echo 'Ruta actual:'.PHP_EOL.'  '.$ROUTE->getPath().PHP_EOL;
 		echo 'Otras rutas:'.PHP_EOL;
-		echo '  '.$ROUTE->getPath().'/explain'.PHP_EOL;
-		echo '  '.$ROUTE->getPath().'/globals'.PHP_EOL;
+		echo '  '.$ROUTE->getPathClass().'.explain'.PHP_EOL;
+		echo '  '.$ROUTE->getPathClass().'.globals'.PHP_EOL;
 	}
 
 	static function CLI_explain(...$_){

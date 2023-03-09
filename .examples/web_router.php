@@ -1,6 +1,6 @@
 <?php
 
-use MiniRouter\Router;
+use MiniRouter\RouterP;
 use MiniRouter\Response;
 
 if(!define('APP_SCRIPT', basename($_SERVER['SCRIPT_NAME']))) throw new Exception('APP already loaded', 1);
@@ -16,7 +16,7 @@ try{
 		'Access-Control-Allow-Headers'=>'Content-Type, Authorization, X-Requested-With',
 		//	'Content-Type'=>'text/plain',
 	]);
-	$router=new Router('Web');
+	$router=new RouterP('Web');
 	\MiniRouter\classloader(APP_DIR.'/endpoints', '', '.php', $router->getMainNamespace(), true);
 	//$router->default_path='index';
 	//$router->missing_class='';
@@ -24,7 +24,6 @@ try{
 	//$router->received_path=Request::getPath();
 	//$router->received_method=Request::getMethod();
 	$router->prepareForHTTP();
-	$router->loadEndPoint();
 	// Se encontró la ruta del endpoint
 	// Ahora que se encontró la ruta. Aqui puede realizar validaciones de seguridad antes de ejecutar el endpoint
 	global $ROUTE;
