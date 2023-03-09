@@ -23,6 +23,7 @@ function classloader(string $rootdir, string $prefix='', string $suffix='.php', 
 			$paths=array_unique([
 				$rootdir.'/'.implode('/', $namespace).'/'.$prefix.$class.$suffix,
 				$rootdir.'/'.implode('-', $namespace).'/'.$prefix.$class.$suffix,
+				$rootdir.'/'.implode('.', $namespace).'/'.$prefix.$class.$suffix,
 			], SORT_STRING);
 			foreach($paths AS &$path){
 				if(is_file($path)){

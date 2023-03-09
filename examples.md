@@ -1,0 +1,33 @@
+[Volver](README.md)
+## Ejemplos
+
+El código de los ejemplos está en:
+- [Carpeta de ejemplos](.examples)
+- [PHP de ejemplo1](example1.php)
+
+Para ejecutar el cron(job) del ejemplo puede hacerlo con los comandos
+```shell
+php ./.examples/cron.php index
+php ./.examples/cron.php index.explain/param1/param2 val1="Valor 1" "val2=Valor 2" -xy -z --FlagA --FlagB "Texto de prueba"
+```
+
+Si el ejemplo (web) no funciona correctamente, debe corregir la constante `BASE_URL` en [.examples/server/init.priv.php](.examples/server/init.priv.php)
+
+## Que puedo modificar o borrar de este repositorio?
+
+Solo el archivo [.MRcore.phar](.MRcore.phar) es indispensable para una actualización exitosa de MiniRouter.
+
+Conserve solo el archivo PHAR que va a utilizar en su proyecto, la alternativa comprimida [.MRcore.phar.gz](.MRcore.phar.gz) puede reemplazar al anterior si desea ahorrar espacio de almacenamiento.
+
+Cuando inicie un nuevo proyecto, recuerde eliminar la [carpeta](.examples) y el [archivo](example1.php) de ejemplo.
+
+También se elimina la carpeta [.MRcore](.MRcore), es innecesario mantenerlo ya que ese código ya está incluido el archivo PHAR.
+
+La carpeta [.myApp](.myApp) se puede modificar segun la necesidad del desarrollo, ya que su código y organización de carpetas, son solo un ejemplo de cómo debería ser usado MiniRouter.
+
+La carpeta [.myApp](.myApp) es definida en la constante`APP_DIR`, por lo que puede cambiar este directorio según lo necesite.
+
+Ya que el objetivo de `APP_DIR` es solo almacenar código de la aplicación, se recomienda crear otras carpetas en la raíz del proyecto si tienen otros fines (como el almacenamiento de archivos de usuario)
+
+El uso de la carpeta [.lib_class](.lib_class) es opcional, ya que son librerías extra del proyecto, pero no son requeridas para su funcionamiento básico.
+Puede habilitar la carga automática de esas librerías o agregar otras carpetas, usando la función `\MiniRouter\classloader()`, como se hace en [.myApp/init.php](.myApp/init.php)
