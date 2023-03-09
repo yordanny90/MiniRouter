@@ -89,7 +89,7 @@ class Router{
 		$path=self::fixPath($this->received_path);
 		if($path==='')
 			$path=self::fixPath($this->default_path);
-		$this->route_parts=array_diff(explode('/', $path), ['', '.', '..']);
+		$this->route_parts=explode('/', $path);
 	}
 
 	/**
@@ -107,7 +107,7 @@ class Router{
 		if(is_null($this->received_method))
 			$this->received_method='CLI';
 		$path=self::fixPath($this->received_path);
-		$this->route_parts=array_diff(explode('/', $path), ['', '.', '..']);
+		$this->route_parts=explode('/', $path);
 	}
 
 	public function loadEndPoint(){
@@ -118,6 +118,7 @@ class Router{
 		$len=0;
 		do{
 			$class=$this->main_namespace.'\\'.implode('\\', array_slice($route_parts, 0, ++$len));
+			if(preg_match("/[^\w\\\]/", $class)) break;
 			if($class_found=class_exists($class)){
 				$route_parts=array_slice($route_parts, $len);
 				break;
