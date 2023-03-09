@@ -1,6 +1,6 @@
 <?php
 if(!defined('APP_DIR')) throw new Exception('App dir missing', 1);
-use MiniRouter\Router2;
+use MiniRouter\Router;
 use MiniRouter\Response;
 try{
 	Response::addHeaders([
