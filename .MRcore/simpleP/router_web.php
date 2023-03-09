@@ -1,6 +1,6 @@
 <?php
 if(!defined('APP_DIR')) throw new Exception('App dir missing', 1);
-use MiniRouter\Router;
+use MiniRouter\RouterP;
 use MiniRouter\Response;
 try{
 	Response::flatBuffer();
@@ -9,11 +9,10 @@ try{
 		'Access-Control-Allow-Credentials'=>'true',
 		'Access-Control-Allow-Headers'=>'Content-Type, Authorization, X-Requested-With',
 	]);
-	$router=new Router('Web');
+	$router=new RouterP('Web');
 	\MiniRouter\classloader(APP_DIR.'/endpoints', '', '.php', $router->getMainNamespace(), true);
 	if(defined('RECEIVED_PATH')) $router->received_path=RECEIVED_PATH;
 	$router->prepareForHTTP();
-	$router->loadEndPoint();
 	global $ROUTE;
 	$ROUTE=$router->getRoute();
 	unset($router);

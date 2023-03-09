@@ -8,6 +8,14 @@ namespace MiniRouter;
  */
 class Route{
 	/**
+	 * @var string Ruta válida de la clase del Endpoint
+	 */
+	protected $path_class;
+	/**
+	 * @var string Nombre válido de la función del Endpoint
+	 */
+	protected $name;
+	/**
 	 * @var string Ruta válida del Endpoint
 	 */
 	protected $path;
@@ -60,6 +68,20 @@ class Route{
 	 */
 	public function getPath(): string{
 		return $this->path;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getPathClass(): string{
+		return $this->path_class;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getName(): string{
+		return $this->name;
 	}
 
 	public function getClass(){
@@ -145,13 +167,16 @@ class Route{
 	 * Convierte un método de una clase en una ruta. Si el método no es válido, devuelve NULL
 	 * @param string $path_class Ruta inicial de la clase
 	 * @param \ReflectionMethod $ref_fn
-	 * @return Route|null
+	 * @param $path_splitter
+	 * @return static|null
 	 */
-	public static function create($path_class, \ReflectionMethod $ref_fn){
+	public static function create($path_class, \ReflectionMethod $ref_fn, $path_splitter='/'){
 		if($ref_fn->isPublic() && ($parts=Router::getMethodParts($ref_fn->getName()))){
 			$r=new static($ref_fn);
-			$r->path=$path_class.($parts['name']!==''?'/'.$parts['name']:'');
+			$r->path=$path_class.($parts['name']!==''?$path_splitter.$parts['name']:'');
 			$r->method=$parts['method'];
+			$r->path_class=$path_class;
+			$r->name=$parts['name'];
 			return $r;
 		}
 		return null;
