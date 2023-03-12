@@ -4,4 +4,5 @@
 out
 gen
 # Archivos de configuración privados, no deben modificarse por versionamiento
+.server
 *.priv.php
