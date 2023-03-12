@@ -3,15 +3,55 @@
 namespace MiniRouter;
 
 class Response{
+	private static $tryGZ=false;
+	private static $tryCloseConn=false;
 	private $http_code=200;
 	private $content;
 	private $extraHeaders=[];
 	private $include_buffer=false;
-	private $close_conn=true;
+	private $close_conn=false;
 	private $gz=false;
 
 	public function __construct($content_type=null){
 		$this->content_type($content_type);
+	}
+
+	/**
+	 * Intentar comprimir todos los response antes de enviarlos
+	 *
+	 * Es incompatible con {@see Response::tryGlobalCloseConn()} y {@see Response::closeConn()}
+	 * @param bool $tryGZ
+	 * @see Response::GZ()
+	 */
+	public static function tryGlobalGZ(bool $tryGZ): void{
+		static::$tryGZ=$tryGZ;
+		if(static::$tryGZ) static::tryGlobalCloseConn(false);
+	}
+
+	/**
+	 * @return bool
+	 */
+	public static function isTryGlobalGZ(): bool{
+		return static::$tryGZ;
+	}
+
+	/**
+	 * Intentar comprimir todos los response antes de enviarlos
+	 *
+	 * Es incompatible con {@see Response::tryGlobalGZ()} y {@see Response::GZ()}
+	 * @param bool $tryCloseConn
+	 * @see Response::closeConn()
+	 */
+	public static function tryGlobalCloseConn(bool $tryCloseConn): void{
+		static::$tryCloseConn=$tryCloseConn;
+		if(static::$tryCloseConn) static::tryGlobalGZ(false);
+	}
+
+	/**
+	 * @return bool
+	 */
+	public static function isTryGlobalCloseConn(): bool{
+		return static::$tryCloseConn;
 	}
 
 	/**
@@ -57,7 +97,7 @@ class Response{
 	 * @return void
 	 */
 	public static function flatBuffer(bool $gz=false){
-		$b=self::getBuffer();
+		$b=static::getBuffer();
 		if($gz) ob_start('ob_gzhandler');
 		else ob_start();
 		echo $b;
@@ -119,26 +159,28 @@ class Response{
 	/**
 	 * Habilita/Dehabilita el cierre de la conexión al enviar la respuesta
 	 *
-	 * Es incompatible con {@see Response::gz()}
+	 * Es incompatible con {@see Response::tryGlobalGZ()} y {@see Response::GZ()}
 	 * @param bool $val
 	 * @return $this
+	 * @see Response::tryGlobalCloseConn()
 	 */
 	public function &closeConn($val){
 		$this->close_conn=boolval($val);
-		if($this->close_conn) $this->gz=false;
+		if($this->close_conn) $this->GZ(false);
 		return $this;
 	}
 
 	/**
 	 * Habilita/Dehabilita la compresón con gz
 	 *
-	 * Es incompatible con {@see Response::closeConn()}
+	 * Es incompatible con {@see Response::tryGlobalCloseConn()} y {@see Response::closeConn()}
 	 * @param bool $val
 	 * @return $this
+	 * @see Response::tryGlobalGZ()
 	 */
-	public function &gz($val){
+	public function &GZ($val){
 		$this->gz=boolval($val);
-		if($this->gz) $this->close_conn=false;
+		if($this->gz) $this->closeConn(false);
 		return $this;
 	}
 
@@ -153,9 +195,9 @@ class Response{
 		$this->content=null;
 	}
 
-	private function mergeContent(){
+	private function mergeContent(bool $tryGZ=false){
 		if(!$this->include_buffer) static::clearBuffer();
-		static::flatBuffer($this->gz);
+		static::flatBuffer($this->isGz() || ($tryGZ && !$this->isCloseConn()));
 		$this->flushContent();
 	}
 
@@ -166,7 +208,7 @@ class Response{
 	 */
 	public function getContent(){
 		$this->mergeContent();
-		return self::getBuffer();
+		return static::getBuffer();
 	}
 
 	/**
@@ -178,14 +220,14 @@ class Response{
 			return false;
 		}
 		static::addHeaders($this->extraHeaders);
-		$this->mergeContent();
-		if($this->close_conn){
+		$this->mergeContent(static::isTryGlobalGZ());
+		http_response_code($this->http_code);
+		if($this->isCloseConn() || (!$this->isGz() && static::isTryGlobalCloseConn())){
 			$length=ob_get_length();
 			header('Content-Length: '.$length, true);
 			header('Connection: close', true);
 			if($length==0) echo "\0";
 		}
-		http_response_code($this->http_code);
 		static::flushBuffer();
 		return true;
 	}

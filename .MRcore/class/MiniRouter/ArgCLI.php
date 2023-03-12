@@ -5,7 +5,16 @@ namespace MiniRouter;
  * Provee las funciones adicionales para la lectura de datos de la ejecución por CLI
  */
 class ArgCLI{
-	const REGEX_ARG_VAR='/^([^\=]+)\=((?:.|\s)*)$/';
+	/**
+	 * Expresiones regulares para validar nombres de argumentos
+	 */
+	const REGEX_NAME_VAR='/^\-+\w+$/';
+	const REGEX_NAME_FLAG='/^\-\w$/';
+	const REGEX_NAME_FLAG_LONG='/^\-\-\w+$/';
+	/**
+	 * Expresiones regulares para analizar argumentos
+	 */
+	const REGEX_ARG_VAR='/^(\-+\w+)\=/';
 	const REGEX_ARG_FLAG='/^\-(\w+)$/';
 	const REGEX_ARG_FLAG_LONG='/^\-\-(\w+)$/';
 
@@ -14,80 +23,136 @@ class ArgCLI{
 	}
 
 	/**
-	 * @param int|null $index
-	 * @return array|string|null
+	 * Obtiene el argumento sin analizar según su posición
+	 * @param int $index
+	 * @return string|null
 	 */
-	public static function getArgs(?int $index=null){
+	public static function get(int $index){
+		if($index<0) return null;
 		$args=$_SERVER['argv']??[];
-		array_shift($args);
-		if(!is_null($index)) return $args[$index]??null;
-		return $args;
+		return $args[$index+1]??null;
 	}
 
 	/**
-	 * @param string|null $index
-	 * @return array|string|null
+	 * @return array[]
 	 */
-	public static function getVariables(?string $index=null){
-		$list=is_null($index)?[]:null;
-		foreach($_SERVER['argv']??[] AS $i=>&$arg){
-			if($i==0 || !preg_match(static::REGEX_ARG_VAR, $arg, $matches)) continue;
-			if(is_null($index)){
-				$list[$matches[1]]=$list[$matches[1]]??$matches[2];
-			}
-			else{
-				if($index===$matches[1]) return $matches[2];
-			}
-		}
-		return $list;
-	}
-
-	/**
-	 * @param string|null $index
-	 * @return array|bool
-	 */
-	public static function getFlags(?string $index=null){
-		$list=is_null($index)?[]:false;
+	public static function &getAll(){
+		$flags=[];
+		$vars=[];
+		$texts=[];
+		$all=[
+			'FLAGS'=>&$flags,
+			'VARS'=>&$vars,
+			'TEXTS'=>&$texts,
+		];
 		foreach($_SERVER['argv']??[] AS $i=>&$arg){
 			if($i==0) continue;
-			if(preg_match(static::REGEX_ARG_FLAG, $arg, $matches)){
-				$flags=array_map(function($v){ return '-'.$v; }, str_split($matches[1]));
-				if(is_null($index)){
-					$list=array_merge($list, $flags);
-				}
-				else{
-					if(in_array($index, $flags, true)) return true;
-				}
+			if(preg_match(static::REGEX_ARG_FLAG, $arg, $m)){
+				$flags=array_merge($flags, array_map(function($v){ return '-'.$v; }, str_split($m[1])));
 			}
-			elseif($i>0 && preg_match(static::REGEX_ARG_FLAG_LONG, $arg, $matches)){
-				if(is_null($index)){
-					$list[]=$matches[0];
-				}
-				else{
-					if($matches[0]==$index) return true;
-				}
+			elseif(preg_match(static::REGEX_ARG_FLAG_LONG, $arg)){
+				$flags[]=$arg;
+			}
+			elseif(preg_match(static::REGEX_ARG_VAR, $arg, $m)){
+				$vars[$m[1]]=$list[$m[1]]??substr($arg, strlen($m[0]));
+			}
+			else{
+				$texts[]=$arg;
+			}
+		}
+		return $all;
+	}
+
+	/**
+	 * @return array
+	 */
+	public static function &getVariables(){
+		$list=[];
+		foreach($_SERVER['argv']??[] AS $i=>&$arg){
+			if($i==0) continue;
+			if(!preg_match(static::REGEX_ARG_VAR, $arg, $m)) continue;
+			$list[$m[1]]=$list[$m[1]]??substr($arg, strlen($m[0]));
+		}
+		return $list;
+	}
+
+	/**
+	 * @param string $name
+	 * @return false|string|null Devuelve NULL si el nombre no es válido, o false si no se encuentra
+	 */
+	public static function getVariable(string $name){
+		if(!preg_match(self::REGEX_NAME_VAR, $name)) return null;
+		foreach($_SERVER['argv']??[] AS $i=>&$arg){
+			if($i==0) continue;
+			if(!preg_match(static::REGEX_ARG_VAR, $arg, $m)) continue;
+			if($name===$m[1]) return substr($arg, strlen($m[0]));
+		}
+		return false;
+	}
+
+	/**
+	 * @return array
+	 */
+	public static function &getFlags(){
+		$list=[];
+		foreach($_SERVER['argv']??[] AS $i=>&$arg){
+			if($i==0) continue;
+			if(preg_match(static::REGEX_ARG_FLAG, $arg, $m)){
+				$flags=array_map(function($v){ return '-'.$v; }, str_split($m[1]));
+				$list=array_merge($list, $flags);
+			}
+			elseif(preg_match(static::REGEX_ARG_FLAG_LONG, $arg)){
+				$list[]=$arg;
 			}
 		}
 		return $list;
 	}
 
 	/**
-	 * @param int|null $index
-	 * @return null|array|string
+	 * @param string $name Ejemplos: "-A" (guión y una letra) para flags cortos, "--Arg" (dos guiones y el menos una letra) para flags largos
+	 * @return bool|null Devuelve NULL si el nombre no es válido
 	 */
-	public static function getText(?int $index=null){
-		$list=is_null($index)?[]:null;
+	public static function getFlag(string $name){
+		$flag=false;
+		if(preg_match(self::REGEX_NAME_FLAG, $name)) $short=true;
+		elseif(preg_match(self::REGEX_NAME_FLAG_LONG, $name)) $short=false;
+		else return null;
+		foreach($_SERVER['argv']??[] AS $i=>&$arg){
+			if($i==0) continue;
+			if($short && preg_match(static::REGEX_ARG_FLAG, $arg, $m)){
+				$flags=array_map(function($v){ return '-'.$v; }, str_split($m[1]));
+				if(in_array($name, $flags, true)) return true;
+			}
+			elseif(!$short && $arg===$name){
+				return true;
+			}
+		}
+		return $flag;
+	}
+
+	/**
+	 * @return array
+	 */
+	public static function &getTexts(){
+		$list=[];
 		foreach($_SERVER['argv']??[] AS $i=>&$arg){
 			if($i==0 || preg_match(static::REGEX_ARG_VAR, $arg) || preg_match(static::REGEX_ARG_FLAG, $arg) || preg_match(static::REGEX_ARG_FLAG_LONG, $arg)) continue;
-			if(is_null($index)){
-				$list[]=$arg;
-			}
-			else{
-				if($index<=0) return $arg;
-				--$index;
-			}
+			$list[]=$arg;
 		}
 		return $list;
 	}
-}
 
+	/**
+	 * @param int $index
+	 * @return null|string
+	 */
+	public static function getText(int $index){
+		if($index<0) return null;
+		foreach($_SERVER['argv']??[] AS $i=>&$arg){
+			if($i==0 || preg_match(static::REGEX_ARG_VAR, $arg) || preg_match(static::REGEX_ARG_FLAG, $arg) || preg_match(static::REGEX_ARG_FLAG_LONG, $arg)) continue;
+			if($index==0) return $arg;
+			--$index;
+		}
+		return null;
+	}
+}

@@ -1,6 +1,6 @@
 <?php
 
-namespace Web;
+namespace AppWeb\ejemplo1;
 
 use MiniRouter\Response;
 

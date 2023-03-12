@@ -1,7 +1,9 @@
 <?php
 if(!defined('APP_DIR')) throw new Exception('App dir missing', 1);
+
 use MiniRouter\Router;
 use MiniRouter\Response;
+
 try{
 	Response::flatBuffer();
 	Response::addHeaders([
@@ -9,11 +11,9 @@ try{
 		'Access-Control-Allow-Credentials'=>'true',
 		'Access-Control-Allow-Headers'=>'Content-Type, Authorization, X-Requested-With',
 	]);
-	$router=new Router('Web');
-	\MiniRouter\classloader(APP_DIR.'/endpoints', '', '.php', $router->getMainNamespace(), true);
-	if(defined('RECEIVED_PATH')) $router->received_path=RECEIVED_PATH;
-	$router->prepareForHTTP();
-	$router->loadEndPoint();
+	$router=Router::startHttp('AppWeb');
+	\MiniRouter\classloader(APP_DIR.'/Routes', '', '.php', $router->getMainNamespace(), true);
+	$router->prepare();
 	global $ROUTE;
 	$ROUTE=$router->getRoute();
 	unset($router);
@@ -25,5 +25,4 @@ try{
 	}
 }catch(\MiniRouter\RouteException $e){
 	$e->getResponse()->send();
-	exit;
 }

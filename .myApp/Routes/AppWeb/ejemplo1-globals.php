@@ -1,6 +1,6 @@
 <?php
 
-namespace Web;
+namespace AppWeb\ejemplo1;
 
 class globals{
 	static function GET_(){
@@ -8,7 +8,7 @@ class globals{
 		return \AppResponse::r_html('')->includeBuffer(1);
 	}
 
-	static function GET_json(){
+	function GET_json(){
 		$json=$GLOBALS;
 		unset($json['GLOBALS']);
 		return \AppResponse::r_json($json);

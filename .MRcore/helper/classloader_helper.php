@@ -18,14 +18,36 @@ function classloader(string $rootdir, string $prefix='', string $suffix='.php', 
 		}
 		return spl_autoload_register(function($class_name) use ($rootdir, $prefix, $suffix, $preg_namespace){
 			if($preg_namespace && !preg_match($preg_namespace, $class_name)) return;
-			$namespace=array_filter(explode('\\', $class_name));
+			$namespace=array_filter(explode('\\', $class_name), 'strlen');
 			$class=array_pop($namespace);
-			$paths=array_unique([
-				$rootdir.'/'.implode('/', $namespace).'/'.$prefix.$class.$suffix,
-				$rootdir.'/'.implode('-', $namespace).'/'.$prefix.$class.$suffix,
-				$rootdir.'/'.implode('.', $namespace).'/'.$prefix.$class.$suffix,
-			], SORT_STRING);
-			foreach($paths AS &$path){
+			$cNS=count($namespace);
+			if($cNS==0){
+				$paths=[
+					$rootdir.'/'.$prefix.$class.$suffix,
+				];
+			}
+			elseif($cNS<=2){
+				$namespace=implode('/', $namespace);
+				$paths=[
+					$rootdir.'/'.$namespace.'/'.$prefix.$class.$suffix,
+					$rootdir.'/'.$namespace.'-'.$prefix.$class.$suffix,
+					$rootdir.'/'.$namespace.'.'.$prefix.$class.$suffix,
+				];
+			}
+			else{
+				$mainNS=array_shift($namespace);
+				$namespace=implode('/', $namespace);
+				$paths=[
+					$rootdir.'/'.$mainNS.'/'.$namespace.'/'.$prefix.$class.$suffix,
+					$rootdir.'/'.$mainNS.'/'.$namespace.'-'.$prefix.$class.$suffix,
+					$rootdir.'/'.$mainNS.'/'.$namespace.'.'.$prefix.$class.$suffix,
+					$rootdir.'/'.$mainNS.'/'.str_replace('/','-',$namespace).'/'.$prefix.$class.$suffix,
+					$rootdir.'/'.$mainNS.'/'.str_replace('/','.',$namespace).'/'.$prefix.$class.$suffix,
+					$rootdir.'/'.$mainNS.'-'.$namespace.'/'.$prefix.$class.$suffix,
+					$rootdir.'/'.$mainNS.'.'.$namespace.'/'.$prefix.$class.$suffix,
+				];
+			}
+			foreach($paths as &$path){
 				if(is_file($path)){
 					include $path;
 					return;
