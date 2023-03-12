@@ -3,139 +3,371 @@
 namespace MiniRouter;
 
 class Router{
+	const TYPE_CLI=0;
+	const TYPE_HTTP=1;
 	/**
-	 * @var string Dirección del enpoint utilizada si {@see Router::$received_path} esta vacío.
+	 * @var string Caracter separador para las rutas
+	 */
+	protected $splitter='.';
+	/**
+	 * @var string Dirección del enpoint utilizada si {@see Router::$path} esta vacío.
 	 *
 	 * Solo aplica para endpoints HTTP (@see Router::prepareForHTTP())
 	 */
-	public $default_path='index';
-	/**
-	 * @var string Nombre de la clase que se carga cuando no se encuentra la solicitada
-	 */
-	public $missing_class='';
-	/**
-	 * >Cuantas más subcarpetas se permitan, menor será la eficiencia de la búsqueda
-	 * @var int Deterina el máximo de subcarpetas permitidos en la búsqueda del endpoint.<br>
-	 * Cada subcarpeta debe ser parte del namespace de la clase del endpoint, empezando por {@see Router::$main_namespace}
-	 */
-	public $max_subdir=1;
+	private $default_path='index';
 	/**
 	 * @var string|null Indica la ruta recibida para la ejecución del endpoint. Si es null, el sistema la detectará auntomáticamente
 	 */
-	public $received_path;
-	/**
-	 * @var string|null Indica el método por el que se ejecuta la ruta recibida. Si es null, el sistema la detectará auntomáticamente
-	 */
-	public $received_method;
+	private $path;
 
 	/**
 	 * @var string El namespace al que deben pertenecer las clases de los endpoint
 	 */
-	protected $main_namespace;
+	private $mainNS;
+	/**
+	 * @var string Nombre de la clase RouteException o una que extienda de esta
+	 */
+	private $classException=RouteException::class;
+	/**
+	 * @var ReRouter|null Reencaminador de rutas
+	 */
+	private $reRouter;
+	/**
+	 * @var array|null Lista de métodos permitidos en el request
+	 */
+	private $allows;
 	/**
 	 * @var string Clase de la que deben extender los endpoint
 	 */
-	protected $parentClass;
+	private $parentClass;
 	/**
-	 * @var string Nombre completo de la clase del endpoint
+	 * @var int Cantidad maxima de subdirectorio al buscar el endpoint. Solo aplica cuando se usa "/" en {@see Router::setSplitter()}
 	 */
-	protected $_endpoint_class;
+	private $maxSubDir=2;
 	/**
-	 * @var array Lista de parámetros después de la ruta de la clase
+	 * @var string|null Método del request
 	 */
-	protected $_params;
+	private $_method;
 	/**
-	 * @var array Partes de la ruta solicitada
+	 * @var \ReflectionClass|null
 	 */
-	protected $route_parts;
+	private $_class;
+	/**
+	 * @var string|null Nombre parcial del método de la clase del endpoint
+	 */
+	private $_name;
+	/**
+	 * @var array|null Lista de parámetros después de la ruta de la clase
+	 */
+	private $_params;
+	/**
+	 * @var \ReflectionMethod|null
+	 */
+	private $_fn;
 
 	protected static function fixPath($path){
-		return trim($path, '/');
+		$path=trim($path, '/');
+
+		return $path;
 	}
 
 	/**
-	 * Router constructor.
+	 * RouterP constructor.
 	 * @param string $main_namespace
 	 * @param string $parentClass Nombre de la clase o interface del que debe extender o implementar los endpoints
 	 * @throws RouteException
 	 */
-	public function __construct(string $main_namespace, string $parentClass=''){
-		$this->main_namespace=$main_namespace;
-		$this->parentClass=$parentClass;
+	protected function __construct($type){
+		$this->type=$type;
+	}
+
+	public static function &startHttp(string $main_namespace, string $parentClass=''){
+		$new=new static(static::TYPE_HTTP);
+		$new->mainNS=$main_namespace;
+		$new->parentClass=$parentClass;
+		return $new;
+	}
+
+	public static function &startCli(string $main_namespace, string $parentClass=''){
+		$new=new static(static::TYPE_CLI);
+		$new->mainNS=$main_namespace;
+		$new->parentClass=$parentClass;
+		return $new;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getSplitter(): string{
+		return $this->splitter;
+	}
+
+	/**
+	 * Establece el caracter que separa las partes de una ruta en la URL
+	 *
+	 * Solo si utiliza el caracater "/", debe contemplar la posibilidad de aumentar o disminuir el valor en {@see Router::setMaxSubDir()}
+	 * @param string $splitter Default: "." Posibles valores: ".- /"
+	 * @return void
+	 * @throws \Exception Error al intentar utilizar un string que no es de longitud 1, o no está en la lista de caracateres permitidos
+	 */
+	public function setSplitter(string $splitter): void{
+		if(strlen($splitter)!==1 || strpos(".- /", $splitter)===false) throw new \Exception($splitter." invalid splitter");
+		$this->splitter=$splitter;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getDefaultPath(): string{
+		return $this->default_path;
+	}
+
+	/**
+	 * @param string $default_path
+	 */
+	public function setDefaultPath(string $default_path): void{
+		$this->default_path=$default_path;
+	}
+
+	/**
+	 * @return string|null
+	 */
+	public function getPath(): ?string{
+		return $this->path;
+	}
+
+	/**
+	 * @param string $path
+	 */
+	public function setPath(string $path): void{
+		$this->path=$path;
+	}
+
+	/**
+	 * Devuelve el método valido después de {@see Router::prepare()}
+	 * @return string|null
+	 */
+	public function getMethod(): ?string{
+		return $this->_method;
+	}
+
+	/**
+	 * Devuelve el nombre de la funcion válida después de {@see Router::prepare()}
+	 * @return string|null
+	 */
+	public function getName(): ?string{
+		return $this->_name;
 	}
 
 	/**
 	 * @return string
 	 */
 	public function getMainNamespace(): string{
-		return $this->main_namespace;
+		return $this->mainNS;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getClassException(): string{
+		return $this->classException;
+	}
+
+	/**
+	 * @param string $classException
+	 * @return void
+	 * @throws \Exception
+	 */
+	public function setClassException($classException){
+		if(!class_exists($classException)){
+			throw new \Exception($classException." is not a class");
+		}
+		if(!is_subclass_of($classException, RouteException::class)){
+			throw new \Exception($classException." class does not extend from ".RouteException::class);
+		}
+		$this->classException=$classException;
+	}
+
+	/**
+	 * @return array|null
+	 */
+	public function getAllows(): ?array{
+		return $this->allows;
+	}
+
+	/**
+	 * @param array|null $allows
+	 */
+	public function setAllows(?array $allows): void{
+		$this->allows=$allows;
+	}
+
+	/**
+	 * @return int
+	 */
+	public function getMaxSubDir(): int{
+		return $this->maxSubDir;
+	}
+
+	/**
+	 * Solo aplica si se utiliza "/" en {@see Router::setSplitter()}
+	 *
+	 * Determina la cantidad máxima de subdirectorios (o namespace) que se utilizan durante la búsqueda de la ruta.
+	 *
+	 * Si este valor se establece en 0 (cero), nunca se tomarán en cuenta las subcarpetas (namespace)
+	 *
+	 * ## IMPORTANTE: Cuanto mayor se a este número, menor será la eficiencia del enrutador
+	 * @param int $maxSubDir Default: 2. El valor minimo es 0 (cero)
+	 */
+	public function setMaxSubDir(int $maxSubDir): void{
+		$this->maxSubDir=max(0, $maxSubDir);
+	}
+
+	/**
+	 * @return ReRouter|null
+	 */
+	public function getReRouter(): ?ReRouter{
+		return $this->reRouter;
+	}
+
+	/**
+	 * @param ReRouter|null $reRouter
+	 */
+	public function setReRouter(?ReRouter $reRouter): void{
+		$this->reRouter=$reRouter;
+	}
+
+	/**
+	 * @param string|null $method
+	 * @return void
+	 * @throws RouteException
+	 */
+	public function prepare(?string $method=null, ?string $path=null): void{
+		if(!is_null($this->_class)){
+			throw new $this->classException('RouterP prepare twice', RouteException::CODE_EXECUTION);
+		}
+		if($this->type==static::TYPE_CLI){
+			$this->prepareForCLI($method, $path);
+		}
+		elseif($this->type==static::TYPE_HTTP){
+			$this->prepareForHTTP($method, $path);
+		}
+		else{
+			throw new $this->classException('RouterP Type invalid', RouteException::CODE_EXECUTION);
+		}
 	}
 
 	/**
 	 * @throws RouteException
 	 */
-	public function prepareForHTTP(){
-		if(!is_null($this->_endpoint_class)){
-			return;
-		}
+	private function prepareForHTTP(?string $method, ?string $path): void{
 		if(Request::isCLI())
-			throw new RouteException('Execution by CLI is not allowed', RouteException::CODE_EXECUTION);
+			throw new $this->classException('Execution by CLI is not allowed', RouteException::CODE_EXECUTION);
 		if(Response::headers_sent())
-			throw new RouteException('Headers has been sent', RouteException::CODE_EXECUTION);
-		if(is_null($this->received_path))
-			$this->received_path=Request::getPath();
-		if(is_null($this->received_method))
-			$this->received_method=Request::getMethod();
-		$path=self::fixPath($this->received_path);
-		if($path==='')
-			$path=self::fixPath($this->default_path);
-		$this->route_parts=explode('/', $path);
+			throw new $this->classException('Headers has been sent', RouteException::CODE_EXECUTION);
+		$path=self::fixPath($path??Request::getPath());
+		if($path==='') $path=self::fixPath($this->default_path);
+		$this->loadEndPoint($method??Request::getMethod(), $path);
 	}
 
 	/**
 	 * @throws RouteException
 	 */
-	public function prepareForCLI(){
-		if(!is_null($this->_endpoint_class)){
-			return;
-		}
+	private function prepareForCLI(?string $method, ?string $path): void{
 		if(!Request::isCLI()){
-			throw new RouteException('Only execution by CLI is allowed', RouteException::CODE_EXECUTION);
+			throw new $this->classException('Only execution by CLI is allowed', RouteException::CODE_EXECUTION);
 		}
-		if(is_null($this->received_path))
-			$this->received_path=ArgCLI::getText(0);
-		if(is_null($this->received_method))
-			$this->received_method='CLI';
-		$path=self::fixPath($this->received_path);
-		$this->route_parts=explode('/', $path);
+		$path=self::fixPath($path??ArgCLI::getText(0));
+		$this->loadEndPoint($method??'CLI', $path);
 	}
 
-	public function loadEndPoint(){
-		if(!is_null($this->_endpoint_class) || !is_array($this->route_parts)){
-			return;
+	private function loadEndPoint(string $method, string $path){
+		if($this->reRouter && $this->reRouter->change($method, $path)){
+			$path=self::fixPath($this->reRouter->getPath()??$path);
+			$method=$this->reRouter->getMethod()??$method;
 		}
-		$route_parts=array_values($this->route_parts);
-		$len=0;
-		do{
-			$class=$this->main_namespace.'\\'.implode('\\', array_slice($route_parts, 0, ++$len));
-			if(preg_match("/[^\w\\\]/", $class)) break;
-			if($class_found=class_exists($class)){
-				$route_parts=array_slice($route_parts, $len);
-				break;
+		$parts=explode('/', $path);
+		if(!is_null($this->_class)) return;
+		if(!count($parts)){
+			throw new $this->classException('Class', RouteException::CODE_NOTFOUND);
+		}
+		$preg_class="/^(\w+\\\)*\w+$/";
+		if($this->getSplitter()!=='/'){
+			$name='';
+			$rclass=str_replace($this->getSplitter(), '\\', $parts[0]);
+			if(!preg_match($preg_class, $rclass)){
+				throw new $this->classException('Class', RouteException::CODE_NOTFOUND);
 			}
-		}while(!$class_found && count($route_parts)>$len && $len<=$this->max_subdir);
-		if($class_found){
-			$this->_endpoint_class=$class;
-			$this->_params=$route_parts;
+			$class=$this->mainNS.'\\'.$rclass;
+			try{
+				$ref_class=new \ReflectionClass($class);
+			}catch(\ReflectionException $e){
+				$cparts=explode('\\', $rclass);
+				$name=array_pop($cparts);
+				if(count($cparts)==0){
+					throw new $this->classException('Class', RouteException::CODE_NOTFOUND);
+				}
+				$class=$this->mainNS.'\\'.implode('\\', $cparts);
+				try{
+					$ref_class=new \ReflectionClass($class);
+				}catch(\ReflectionException $e){
+					throw new $this->classException('Class', RouteException::CODE_NOTFOUND, $e);
+				}
+			}
+			if($this->parentClass && !$ref_class->isSubclassOf($this->parentClass)){
+				throw new $this->classException('Class', RouteException::CODE_FORBIDDEN);
+			}
+			try{
+				$ref_fn=$ref_class->getMethod($method.'_'.$name);
+			}catch(\ReflectionException $e){
+			}
+			$this->_method=$method;
+			$this->_class=$ref_class;
+			$this->_name=$name;
+			$this->_params=array_slice($parts, 1);
+			$this->_fn=$ref_fn??null;
 		}
-		elseif(class_exists($this->main_namespace.'\\'.$this->missing_class)){
-			$this->_endpoint_class=$this->main_namespace.'\\'.$this->missing_class;
-			$this->_params=array_values($this->route_parts);
+		else{
+			$len=0;
+			do{
+				if(++$len>($this->getMaxSubDir()+1)){
+					throw new $this->classException('Class', RouteException::CODE_NOTFOUND);
+				}
+				$cparts=array_slice($parts, 0, $len);
+				if(!preg_match($preg_class, implode('\\', $cparts))){
+					throw new $this->classException('Class', RouteException::CODE_NOTFOUND);
+				}
+				$class=$this->mainNS.'\\'.implode('\\', $cparts);
+			}while(!class_exists($class));
+			try{
+				$ref_class=new \ReflectionClass($class);
+			}catch(\ReflectionException $e){
+				throw new $this->classException('Class', RouteException::CODE_NOTFOUND, $e);
+			}
+			if($this->parentClass && !$ref_class->isSubclassOf($this->parentClass)) throw new $this->classException('Class', RouteException::CODE_FORBIDDEN);
+			$name=$parts[$len]??'';
+			$ref_fn=null;
+			try{
+				$ref_fn=$ref_class->getMethod($method.'_'.$name);
+				if($name!=='') ++$len;
+			}catch(\ReflectionException $e){
+				if($name!==''){
+					$name='';
+					try{
+						$ref_fn=$ref_class->getMethod($method.'_'.$name);
+					}catch(\ReflectionException $e){
+					}
+				}
+			}
+			$this->_method=$method;
+			$this->_class=$ref_class;
+			$this->_name=$name;
+			$this->_params=array_slice($parts, $len);
+			$this->_fn=$ref_fn;
 		}
 	}
 
 	/**
-	 * Antes de llamarlo se requiere {@see Router::loadEndPoint()}
 	 * @param bool $strict_parrams Default: true. Valida que los parámetros recibidos no excedan los esperados.
 	 *
 	 * Aunque se deshabilite seguira validando que cumpla con los parámetros mínimos
@@ -143,106 +375,96 @@ class Router{
 	 * @throws RouteException
 	 */
 	public function getRoute(bool $strict_parrams=true){
-		if(!$this->_endpoint_class)
-			throw new RouteException('Class', RouteException::CODE_NOTFOUND);
-		try{
-			$ref_class=new \ReflectionClass($this->_endpoint_class);
-		}catch(\ReflectionException $e){
-			throw new RouteException('Class', RouteException::CODE_NOTFOUND, $e);
+		if($this->getAllows() && !in_array($this->getMethod(), $this->getAllows())){
+			throw new $this->classException($this->getMethod(), RouteException::CODE_METHODNOTALLOWED);
 		}
-		if($this->parentClass && !$ref_class->isSubclassOf($this->parentClass)) throw new RouteException('Invalid class', RouteException::CODE_NOTFOUND);
-		if(!$ref_class->isInstantiable()){
-			throw new RouteException('Class', RouteException::CODE_FORBIDDEN);
+		if(!$this->_class) throw new $this->classException('Class ', RouteException::CODE_NOTFOUND);
+		if(!$this->_fn) throw new $this->classException('Funtion ', RouteException::CODE_NOTFOUND);
+		$ref_fn=$this->_fn;
+		if(!$ref_fn->isPublic()) throw new $this->classException('Function', RouteException::CODE_FORBIDDEN);
+		if(!$this->_class->isInstantiable() && !$ref_fn->isStatic()) throw new $this->classException('Function', RouteException::CODE_FORBIDDEN);
+		$path_class=static::class_to_path($this->mainNS, $this->_class->getName(), $this->getSplitter());
+		$route=Route::create($path_class, $ref_fn, $this->getSplitter());
+		if(!$route || $route->getMethod()!==$this->getMethod() || $route->getName()!==$this->getName()){
+			throw new $this->classException('Route', RouteException::CODE_NOTFOUND);
 		}
-		$path_class=static::class_to_path($this->main_namespace, $this->_endpoint_class);
-		$params=array_values($this->_params);
-		$f_method=$this->received_method;
-		$name=$params[0]??null;
-		$route=null;
-		$allows=[];
-		foreach($ref_class->getMethods(\ReflectionMethod::IS_PUBLIC) AS $ref_fn){
-			if($m_parts=static::getMethodParts($ref_fn->getName())){
-				if($m_parts['name']===$name){
-					$allows[]=$m_parts['method'];
-					if($m_parts['method']===$f_method){
-						$route=Route::create($path_class, $ref_fn);
-						if($route) array_shift($params);
-					}
-				}
-				elseif($m_parts['name']===''){
-					$allows[]=$m_parts['method'];
-					if(!$route && $m_parts['method']===$f_method){
-						$route=Route::create($path_class, $ref_fn);
-					}
-				}
-			}
+		$param_missing=$route->getReqParams()-count($this->_params);
+		if($param_missing>0){
+			throw new $this->classException('Params missing: '.$param_missing, RouteException::CODE_NOTFOUND);
 		}
-		if(!$route){
-			if(count($allows)>0) throw new RouteException($f_method, RouteException::CODE_METHODNOTALLOWED);
-			throw new RouteException('Function', RouteException::CODE_NOTFOUND);
+		elseif($strict_parrams && !$route->isParamsInfinite() && $route->getParams()<count($this->_params)){
+			throw new $this->classException('Too many params', RouteException::CODE_NOTFOUND);
 		}
-		$route->setAllows($allows);
-		$param_missing=$route->getReqParams()-count($params);
-		if($param_missing>0) throw new RouteException('Params missing: '.$param_missing, RouteException::CODE_NOTFOUND);
-		elseif($strict_parrams && $route->getParams()<count($params) && !$route->isParamsInfinite()){
-			throw new RouteException('Too many params', RouteException::CODE_NOTFOUND);
-		}
-		$route->exec_params=$params;
+		$route->exec_params=$this->_params;
 		return $route;
 	}
 
+	private function allows(string $name){
+	}
+
 	/**
-	 * @param string $main_namespace
-	 * @param string $class
+	 * @param string $name {@see Router::getName()}
 	 * @return array
-	 * @throws RouteException
+	 */
+	public function getRouteAllow(string $name){
+		if(!$this->_class) return null;
+		$allows=[];
+		$instClass=$this->_class->isInstantiable();
+		foreach($this->_class->getMethods(\ReflectionMethod::IS_PUBLIC) AS $ref_fn){
+			if(!$instClass && !$ref_fn->isStatic()) continue;
+			if(($m_parts=Route::getMethodParts($ref_fn->getName())) && $m_parts['name']===$name){
+				$allows[]=$m_parts['method'];
+			}
+		}
+		if($this->getAllows()) $allows=array_values(array_intersect($allows, $this->getAllows()));
+		return $allows;
+	}
+
+	public function getClassPath(){
+		if(!$this->_class) return null;
+		return static::class_to_path($this->mainNS, $this->_class->getName(), $this->getSplitter());
+	}
+
+	public function getClassFile(){
+		if(!$this->_class) return null;
+		return $this->_class->getFileName();
+	}
+
+	/**
+	 * @return array|null
 	 */
 	public function getRouteList(){
-		if(!$this->_endpoint_class)
-			throw new RouteException('Class', RouteException::CODE_NOTFOUND);
-		if($this->parentClass && !is_subclass_of($this->_endpoint_class, $this->parentClass)) throw new RouteException('Invalid class', RouteException::CODE_NOTFOUND);
-		$main_namespace=$this->main_namespace;
-		$class=$this->_endpoint_class;
-		try{
-			$ref_class=new \ReflectionClass($class);
-		}catch(\ReflectionException $e){
-			throw new RouteException('Class', RouteException::CODE_NOTFOUND, $e);
-		}
-		if(!$ref_class->isInstantiable()){
-			throw new RouteException('Class', RouteException::CODE_FORBIDDEN);
-		}
-		$path_class=static::class_to_path($main_namespace, $class);
+		if(!$this->_class) return null;
 		$routes=[];
-		foreach($ref_class->getMethods(\ReflectionMethod::IS_PUBLIC) AS $ref_fn){
-			if($r=Route::create($path_class, $ref_fn)){
-				$routes[]=$r;
+		$instClass=$this->_class->isInstantiable();
+		$path_class=static::class_to_path($this->mainNS, $this->_class->getName(), $this->getSplitter());
+		foreach($this->_class->getMethods(\ReflectionMethod::IS_PUBLIC) AS $ref_fn){
+			if(!$instClass && !$ref_fn->isStatic()) continue;
+			if($route=Route::create($path_class, $ref_fn, $this->getSplitter())){
+				$routes[$route->getMethod()][]=[
+					$route->getMethod(),
+					$route->getPath(),
+					$route->getUrlParams()
+				];
 			}
+		}
+		if($this->getAllows()){
+			$routes=array_merge(...array_values(array_intersect_key($routes,array_fill_keys($this->getAllows(),null))));
+		}
+		else{
+			$routes=array_merge(...array_values($routes));
 		}
 		return $routes;
 	}
 
-	public static function class_to_path($main_namespace, $class){
+	public static function class_to_path($main_namespace, $class, $path_splitter){
 		if(substr($class,0,strlen($main_namespace))==$main_namespace){
 			$path_class=substr($class, strlen($main_namespace));
 		}
 		else{
 			$path_class=$class;
 		}
-		return ltrim(str_replace('\\', '/', $path_class), '/');
-	}
-
-	/**
-	 * @param string $fnName
-	 * @return array|null Si el nombre es válido devuelve un array con dos llaves: 'method' y 'name'
-	 */
-	public static function getMethodParts(string $fnName){
-		if(preg_match('/^([A-Z]+)_(.*)$/', $fnName, $matches)){
-			return [
-				'method'=>$matches[1],
-				'name'=>$matches[2]
-			];
-		}
-		return null;
+		return ltrim(str_replace('\\', $path_splitter, $path_class), $path_splitter);
 	}
 
 }

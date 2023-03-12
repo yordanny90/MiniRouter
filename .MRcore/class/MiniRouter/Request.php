@@ -58,9 +58,6 @@ class Request{
 	}
 
 	public static function getPath(){
-		if(($_SERVER['PATH_INFO']??'')!==''){
-			return $_SERVER['PATH_INFO'];
-		}
 		# Fix para nginx
 		$path_info=$_SERVER['REQUEST_URI']??'';
 		if(preg_match('/^'.preg_quote($_SERVER['SCRIPT_NAME']??'', '/').'(\/.*)$/', $path_info, $m)){

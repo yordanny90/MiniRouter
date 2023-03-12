@@ -20,10 +20,6 @@ class Route{
 	 */
 	protected $path;
 	/**
-	 * @var array Lista de métodos permitidos para esta ruta
-	 */
-	protected $allows=[];
-	/**
 	 * @var string Método de esta ruta
 	 */
 	protected $method;
@@ -47,20 +43,6 @@ class Route{
 	 */
 	public function isStarted(){
 		return $this->started;
-	}
-
-	/**
-	 * @param array $allows
-	 */
-	public function setAllows(array $allows){
-		$this->allows=array_unique($allows);
-	}
-
-	/**
-	 * @return array
-	 */
-	public function getAllows(){
-		return $this->allows;
 	}
 
 	/**
@@ -171,13 +153,27 @@ class Route{
 	 * @return static|null
 	 */
 	public static function create($path_class, \ReflectionMethod $ref_fn, $path_splitter='/'){
-		if($ref_fn->isPublic() && ($parts=Router::getMethodParts($ref_fn->getName()))){
+		if($ref_fn->isPublic() && ($parts=static::getMethodParts($ref_fn->getName()))){
 			$r=new static($ref_fn);
 			$r->path=$path_class.($parts['name']!==''?$path_splitter.$parts['name']:'');
 			$r->method=$parts['method'];
 			$r->path_class=$path_class;
 			$r->name=$parts['name'];
 			return $r;
+		}
+		return null;
+	}
+
+	/**
+	 * @param string $fnName
+	 * @return array|null Si el nombre es válido devuelve un array con dos llaves: 'method' y 'name'
+	 */
+	public static function getMethodParts(string $fnName){
+		if(preg_match('/^([A-Z]+)_(.*)$/', $fnName, $matches)){
+			return [
+				'method'=>$matches[1],
+				'name'=>$matches[2]
+			];
 		}
 		return null;
 	}
