@@ -59,8 +59,9 @@ class Request{
 
 	public static function getPath(){
 		# Fix para nginx
-		$path_info=$_SERVER['REQUEST_URI']??'';
-		if(preg_match('/^'.preg_quote($_SERVER['SCRIPT_NAME']??'', '/').'(\/.*)$/', $path_info, $m)){
+		$valid=preg_match('/^'.preg_quote($_SERVER['SCRIPT_NAME']??'', '/').'(\/.*)$/', ($path_info=$_SERVER['REQUEST_URI']??''), $m);
+		if(!$valid) $valid=preg_match('/^'.preg_quote($_SERVER['SCRIPT_NAME']??'', '/').'(\/.*)$/', ($path_info=$_SERVER['PHP_SELF']??''), $m);
+		if($valid){
 			$path_info=$m[1];
 			if(preg_match('/^(\/.*)\?'.preg_quote(($_SERVER['QUERY_STRING']??''), '/').'$/', $path_info, $m)){
 				$path_info=$m[1];
