@@ -27,7 +27,7 @@ class Response{
 
 	public function __construct(?int $http_code=null, ?string $content_type=null){
 		if(!is_null($content_type)) $this->content_type($content_type);
-		if(!is_null($content_type)) $this->httpCode($http_code);
+		if(!is_null($http_code)) $this->httpCode($http_code);
 	}
 
 	/**
