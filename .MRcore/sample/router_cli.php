@@ -1,11 +1,12 @@
 <?php
 if(!defined('APP_DIR')) throw new Exception('App dir missing', 1);
 
-use MiniRouter\Router;
-
-// Opciones avanzadas del Router
+if(!\MiniRouter\Request::isCLI()){
+	\MiniRouter\Response::r_forbidden()->send();
+	exit;
+}
 try{
-	$router=Router::startCli('AppTask');
+	$router=\MiniRouter\Router::startCli('AppTask');
 	\MiniRouter\classloader(APP_DIR.'/Routes', '', '.php', $router->getMainNamespace(), true);
 	$router->prepare();
 	// Se encontró la ruta del endpoint
