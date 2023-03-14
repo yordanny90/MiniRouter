@@ -157,7 +157,9 @@ php -s localhost:8000 -F index.php
 ```
 
 ---
-### Ejemplo [myApp](.MyApp/README.md)
+### Ejemplo myApp
+
+La carpeta `.myApp` contiene un ejemplo mas desarrollado que el anterior
 
 ---
 ### Esta versión aún está en desarrollo. ###
