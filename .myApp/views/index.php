@@ -9,7 +9,7 @@ global $ROUTE;
 </head>
 <body>
 <div>
-	<a href="">Ir al inicio</a>
+	<a href="<?=APP_SCRIPT?>">Ir al inicio</a>
 </div>
 <div>
 	<a href="javascript:history.back()">Ir atrás</a>

@@ -1,15 +1,16 @@
-[Volver](README.md)
+[Volver](../README.md)
 ## Ejemplos
 
 El código de los ejemplos está en:
 - [Carpeta de ejemplos](.myApp)
 - [PHP de ejemplo](index.php)
+- [PHP de ejemplo](task.php)
 
 Para ejecutar el job del ejemplo puede hacerlo con los comandos
 ```shell
-php ./.myApp/Task.php args
-php ./.myApp/Task.php globals
-php ./.MyApp/Task.php args.show/param1/param2 -val1="Valor 1" "--val2=Valor 2" -xyZ -X --FlagA --FlagB "Texto=de prueba"
+php ./task.php args
+php ./task.php globals
+php ./task.php args.show/param1/param2 -val1="Valor 1" "--val2=Valor 2" -xyZ -X --FlagA --FlagB "Texto=de prueba"
 ```
 
 ## Que puedo modificar o borrar de este repositorio?
