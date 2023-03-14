@@ -54,19 +54,39 @@ class Request{
 	}
 
 	public static function getScheme(){
-		return $_SERVER['REQUEST_SCHEME']??'';
+		return $_SERVER['REQUEST_SCHEME']??null;
+	}
+
+	public static function getScript($fullpath=false){
+		return ($fullpath?$_SERVER['DOCUMENT_ROOT']:'').$_SERVER['SCRIPT_NAME'];
+	}
+
+	public static function getRealScript(){
+		return (is_file(static::getScript(true))?static::getScript():'');
+	}
+
+	public static function getScriptFile(){
+		return $_SERVER['SCRIPT_FILENAME'];
+	}
+
+	public static function getRootDir(){
+		return $_SERVER['DOCUMENT_ROOT']??null;
+	}
+
+	public static function hasChanged_rootDir(){
+		return getcwd()!==static::getRootDir();
 	}
 
 	public static function getPath(){
+		if(!is_null($_SERVER['PATH_INFO'] ?? null)) return $_SERVER['PATH_INFO'];
 		# Fix para nginx
-		$valid=preg_match('/^'.preg_quote($_SERVER['SCRIPT_NAME']??'', '/').'(\/.*)$/', ($path_info=$_SERVER['REQUEST_URI']??''), $m);
-		if(!$valid) $valid=preg_match('/^'.preg_quote($_SERVER['SCRIPT_NAME']??'', '/').'(\/.*)$/', ($path_info=$_SERVER['PHP_SELF']??''), $m);
+		$valid=false;
+		$preg='/^'.preg_quote(static::getRealScript(), '/').'(\/[^\?]*)/';
+		if(!$valid && isset($_SERVER['PHP_SELF'])) $valid=preg_match($preg, $_SERVER['PHP_SELF'], $m);
+		if(!$valid && isset($_SERVER['REQUEST_URI'])) $valid=preg_match($preg, $_SERVER['REQUEST_URI'], $m);
+		if(!$valid && isset($_SERVER['REDIRECT_URL'])) $valid=preg_match($preg, $_SERVER['REDIRECT_URL'], $m);
 		if($valid){
-			$path_info=$m[1];
-			if(preg_match('/^(\/.*)\?'.preg_quote(($_SERVER['QUERY_STRING']??''), '/').'$/', $path_info, $m)){
-				$path_info=$m[1];
-			}
-			$path_info=preg_replace('/\/{2,}/','/', urldecode($path_info));
+			$path_info=preg_replace('/\/{2,}/','/', urldecode($m[1]));
 			return $path_info;
 		}
 		return null;

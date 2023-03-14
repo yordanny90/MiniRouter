@@ -8,6 +8,9 @@ class RouteException extends \Exception{
 	const CODE_NOTFOUND=404;
 	const CODE_FORBIDDEN=403;
 
+	/**
+	 * @return Response|null
+	 */
 	final public function getResponse(){
 		$res=null;
 		if($this->code===self::CODE_METHODNOTALLOWED){
@@ -26,24 +29,39 @@ class RouteException extends \Exception{
 		return $res;
 	}
 
+	/**
+	 * @return Response
+	 */
 	protected function responseMethodNotAllowed(){
 		return Response::r_text('Method not allowed. '.PHP_EOL.$this->getMessage())->httpCode($this->code);
 	}
 
+	/**
+	 * @return Response
+	 */
 	protected function responseNotFound(){
 		return Response::r_text('Route not found. '.PHP_EOL.$this->getMessage())->httpCode($this->code);
 	}
 
+	/**
+	 * @return Response
+	 */
 	protected function responseForbidden(){
 		return Response::r_text('Access forbidden. '.PHP_EOL.$this->getMessage())->httpCode($this->code);
 	}
 
+	/**
+	 * @return Response
+	 */
 	protected function responseExecution(){
 		return Response::r_text('Execution error. '.PHP_EOL.$this->getMessage())->httpCode($this->code);
 	}
 
+	/**
+	 * @return Response
+	 */
 	protected function responseDefault(){
-		return Response::r_text('Error. '.PHP_EOL.$this->getMessage())->httpCode($this->code);
+		return Response::r_text('Error. '.PHP_EOL.$this->getMessage())->httpCode(500);
 	}
 
 	public static function simpleTrace(\Throwable $e, $lvl=0){

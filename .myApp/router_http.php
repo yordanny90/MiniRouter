@@ -7,9 +7,14 @@ use MiniRouter\Response;
 
 // Se carga la librería del MiniRouter
 require_once __DIR__.'/init.php';
-Response::flatBuffer();
-Response::tryGlobalGZ(true);
+if(\MiniRouter\Request::isCLI()){
+	Response::r_forbidden()->content('Execution by CLI is not allowed')->send();
+	exit;
+}
 try{
+	if(!define('APP_SCRIPT', dirname(\MiniRouter\Request::getRealScript()))) throw new Exception('APP_SCRIPT already loaded', 1);
+	Response::flatBuffer();
+	Response::tryGlobalGZ(true);
 	call_user_func(function(){
 		$router=\MiniRouter\Router::startHttp('AppWeb');
 		$router->setAllows([
@@ -73,9 +78,7 @@ try{
 		if($router->getMethod()==='OPTIONS'){
 			$allows=$router->getRouteAllow($router->getName());
 			if(!in_array('OPTIONS', $allows)){
-				(new Response())->headers([
-					'Allow'=>implode(', ', $allows),
-				])->send();
+				(new Response())->header('Allow', implode(', ', $allows))->send();
 				return;
 			}
 		}
@@ -87,7 +90,7 @@ try{
 					return;
 				}
 				else{
-					(new Response())->httpCode(404)->send();
+					Response::r_not_found()->send();
 					return;
 				}
 			}
