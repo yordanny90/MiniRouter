@@ -46,8 +46,8 @@ Para todos los ejemplos solo necesita descargar el archivo [.MRcore.phar](.MRcor
 Crear el archivo `index.php` que procesa todos los request al servidor
 ```PHP
 define('APP_DIR', __DIR__.'/.myApp');
-include ".MRcore.phar";
-include "phar://.MRcore.phar/simple/router_http.php";
+require ".MRcore.phar";
+require "phar://.MRcore.phar/sample/router_http.php";
 ```
 
 Crear el archivo `.myApp/Routes/AppWeb/index.php` para establecer los endpoints `index` e `index.go` por metodo `GET`
@@ -68,7 +68,7 @@ class index{
 	static function GET_go($txt){
 		echo $txt.'<br>';
 		print_r($_SERVER);
-		return Response::r_text('')->includeBuffer(1);
+		return Response::r_text('', true);
 	}
 }
 ```
@@ -83,7 +83,7 @@ php -s localhost:8000 -F index.php
 Es posible utilizar otros separadores distintos al punto, como el `/`, sin embargo no se recomienda este caracter, ya que la optimización de búsqueda de las rutas.
 Cualquier otros caracter tendra el mismo nivel de optimización que el punto, por ejemplo el guión `-`.
 
-Sin embargo la cantidad de caracteres utilizados con este fin son limitados, vea la información en la documentación de la función `RouterP::setSplitter()`
+Sin embargo la cantidad de caracteres utilizados con este fin son limitados, vea la información en la documentación de la función `Router::setSplitter()`
 
 Ahora vamos a obtener el código del archivo `router_http.php` que se utilizó anteriormente y lo guardamos en `.myApp/init.php`, agregando el llamado a la función,  así:
 
@@ -122,9 +122,9 @@ try{
 El archivo `index.php` dejara de llamar al router_http.php dentro del PHAR, y pasara utilizar el que personalizamos anteriormente, así:
 ```PHP
 define('APP_DIR', __DIR__.'/.myApp');
-include ".MRcore.phar";
-//include "phar://.MRcore.phar/simple/router_http.php";
-include APP_DIR."/router_http.php";
+require ".MRcore.phar";
+//require "phar://.MRcore.phar/sample/router_http.php";
+require APP_DIR."/router_http.php";
 ```
 
 Ahora en el archivo `.myApp/Routes/AppWeb/index.php`, para establecer los endpoints separados por `-` solo debemos cambiar los enlaces, así:
