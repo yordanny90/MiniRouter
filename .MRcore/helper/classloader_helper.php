@@ -16,7 +16,7 @@ function classloader(string $rootdir, string $prefix='', string $suffix='.php', 
 		if(!empty($namespace)){
 			$preg_namespace='/^\\\\?'.preg_quote($namespace.'\\').'.+/';
 		}
-		return spl_autoload_register(function($class_name) use ($rootdir, $prefix, $suffix, $preg_namespace){
+		$success=spl_autoload_register(function($class_name) use ($rootdir, $prefix, $suffix, $preg_namespace){
 			if($preg_namespace && !preg_match($preg_namespace, $class_name)) return;
 			$namespace=array_filter(explode('\\', $class_name), 'strlen');
 			$class=array_pop($namespace);
@@ -54,6 +54,7 @@ function classloader(string $rootdir, string $prefix='', string $suffix='.php', 
 				}
 			}
 		}, true, $prepend);
+		return $success;
 	}
 	else{
 		return false;
