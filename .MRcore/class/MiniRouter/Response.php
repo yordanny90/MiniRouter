@@ -5,15 +5,37 @@ namespace MiniRouter;
 class Response{
 	private static $tryGZ=false;
 	private static $tryCloseConn=false;
+	/**
+	 * @var callable|null
+	 */
+	private static $beforeSend;
+	/**
+	 * @var callable|null
+	 */
+	private static $afterSend;
 	private $http_code=200;
 	private $content;
-	private $extraHeaders=[];
-	private $include_buffer=false;
+	/**
+	 * @var bool|callable
+	 */
+	private $fixed=false;
+	private $headers=[];
+	private $incBuffer=false;
 	private $close_conn=false;
 	private $gz=false;
+	private $sent=false;
 
-	public function __construct($content_type=null){
-		$this->content_type($content_type);
+	public function __construct(?int $http_code=null, ?string $content_type=null){
+		if(!is_null($content_type)) $this->content_type($content_type);
+		if(!is_null($content_type)) $this->httpCode($http_code);
+	}
+
+	/**
+	 * Indica si esta respuesta ya fué enviada
+	 * @return bool
+	 */
+	public function isSent(): bool{
+		return $this->sent;
 	}
 
 	/**
@@ -97,10 +119,17 @@ class Response{
 	 * @return void
 	 */
 	public static function flatBuffer(bool $gz=false){
-		$b=static::getBuffer();
-		if($gz) ob_start('ob_gzhandler');
-		else ob_start();
-		echo $b;
+		if($gz){
+			$b=static::getBuffer();
+			ob_start('ob_gzhandler');
+			echo $b;
+		}
+		else{
+			while(ob_get_level()>1){
+				ob_end_flush();
+			}
+			if(ob_get_level()==0) ob_start();
+		}
 	}
 
 	/**
@@ -109,10 +138,11 @@ class Response{
 	 * @see ob_get_clean()
 	 */
 	public static function &getBuffer(){
-		$b='';
-		while(ob_get_level()>0){
-			$b=ob_get_clean().$b;
+		while(ob_get_level()>1){
+			ob_end_flush();
 		}
+		$b=ob_get_clean();
+		if($b===false) $b='';
 		return $b;
 	}
 
@@ -138,11 +168,13 @@ class Response{
 	 * Agrega los headers para enviarlos al cliente (browser).<br>
 	 * Se enviarán cuando el proceso finalize o cuando se envíe una respuesta
 	 * @param array $headers
+	 * @return bool
 	 */
-	public static function addHeaders(array $headers){
+	public static function addHeaders(array $headers, $replace=true){
 		foreach($headers as $k=>$v){
-			header($k.': '.$v);
+			header($k.': '.$v, $replace);
 		}
+		return true;
 	}
 
 	/**
@@ -152,7 +184,8 @@ class Response{
 	 * @return $this
 	 */
 	public function &includeBuffer($include){
-		$this->include_buffer=boolval($include);
+		if($this->isFixed()) return $this;
+		$this->incBuffer=boolval($include);
 		return $this;
 	}
 
@@ -165,6 +198,7 @@ class Response{
 	 * @see Response::tryGlobalCloseConn()
 	 */
 	public function &closeConn($val){
+		if($this->isFixed()) return $this;
 		$this->close_conn=boolval($val);
 		if($this->close_conn) $this->GZ(false);
 		return $this;
@@ -179,26 +213,20 @@ class Response{
 	 * @see Response::tryGlobalGZ()
 	 */
 	public function &GZ($val){
+		if($this->isFixed()) return $this;
 		$this->gz=boolval($val);
 		if($this->gz) $this->closeConn(false);
 		return $this;
 	}
 
 	protected function flushContent(){
-		if(is_string($this->content)){
+		if($this->isFixed()){
+			call_user_func($this->fixed, ...$this->content);
+		}
+		elseif(is_string($this->content)){
 			echo $this->content;
 		}
-		elseif(is_resource($this->content ?? null)){
-			fpassthru($this->content);
-			fclose($this->content);
-		}
-		$this->content=null;
-	}
-
-	private function mergeContent(bool $tryGZ=false){
-		if(!$this->include_buffer) static::clearBuffer();
-		static::flatBuffer($this->isGz() || ($tryGZ && !$this->isCloseConn()));
-		$this->flushContent();
+		$this->noContent();
 	}
 
 	/**
@@ -207,8 +235,88 @@ class Response{
 	 * @see Response::send()
 	 */
 	public function getContent(){
-		$this->mergeContent();
+		if(!$this->isIncludeBuffer()) static::clearBuffer();
+		ob_start();
+		$this->flushContent();
 		return static::getBuffer();
+	}
+
+	/**
+	 * Registra/reemplaza la función que se ejecuta automáticamente antes de enviar una respuesta (al invocar {@see Response::send()}).
+	 *
+	 * Solo puede haber una función registrada, y aplica para cualquier objeto de tipo {@see Response} o cualquier otra clase que herede de esta.
+	 * @param callable|null $func Esta función solo recibe un parámetro: el objeto {@see Response} que se va a enviar
+	 * @return void
+	 * @throws \Exception
+	 */
+	public static function beforeSend(?callable $func){
+		if(!is_null($func)){
+			try{
+				$rfn=new \ReflectionFunction($func);
+				if($rfn->getNumberOfRequiredParameters()>1) throw new \Exception('Too many params', 0);
+				if(($param=$rfn->getParameters()[0] ?? null) && ($type=$param->getType())){
+					if(is_a($type, \ReflectionNamedType::class)) $types=[$type->getName()];
+					elseif(is_a($type, \ReflectionUnionType::class) || is_a($type, \ReflectionIntersectionType::class)) $types=array_map('strval', $type->getTypes());
+					else throw new \Exception('Unable to read param type', 0);
+					if(!in_array(self::class, $types)) throw new \Exception('Invalid param type', 0);
+				}
+			}catch(\ReflectionException $e){
+				throw new \Exception('Invalid function', 0, $e);
+			}
+		}
+		self::$beforeSend=$func;
+	}
+
+	/**
+	 * Registra/reemplaza la función que se ejecuta automáticamente después de enviar una respuesta (al invocar {@see Response::send()}).
+	 *
+	 * Solo puede haber una función registrada, y aplica para cualquier objeto de tipo {@see Response} o cualquier otra clase que herede de esta.
+	 * @param callable|null $func Esta función no recibe un parámetro: el objeto {@see Response} que se va a enviar
+	 * @return void
+	 * @throws \Exception
+	 */
+	public static function afterSend(?callable $func){
+		if(!is_null($func)){
+			try{
+				$rfn=new \ReflectionFunction($func);
+				if($rfn->getNumberOfRequiredParameters()>1) throw new \Exception('Too many params', 0);
+				if(($param=$rfn->getParameters()[0] ?? null) && ($type=$param->getType())){
+					if(is_a($type, \ReflectionNamedType::class)) $types=[$type->getName()];
+					elseif(is_a($type, \ReflectionUnionType::class) || is_a($type, \ReflectionIntersectionType::class)) $types=array_map('strval', $type->getTypes());
+					else throw new \Exception('Unable to read param type', 0);
+					if(!in_array(self::class, $types)) throw new \Exception('Invalid param type', 0);
+				}
+			}catch(\ReflectionException $e){
+				throw new \Exception('Invalid function', 0, $e);
+			}
+		}
+		self::$afterSend=$func;
+	}
+
+	/**
+	 * @return callable|null
+	 */
+	public static function getBeforeSend(): ?callable{
+		return self::$beforeSend;
+	}
+
+	/**
+	 * @return callable|null
+	 */
+	public static function getAfterSend(): ?callable{
+		return self::$afterSend;
+	}
+
+	protected function triggerBeforeSend(){
+		if(is_callable(self::$beforeSend)){
+			call_user_func(self::$beforeSend, $this);
+		}
+	}
+
+	protected function triggerAfterSend(){
+		if(is_callable(self::$afterSend)){
+			call_user_func(self::$afterSend, $this);
+		}
 	}
 
 	/**
@@ -216,19 +324,54 @@ class Response{
 	 * @return bool
 	 */
 	public function send(){
-		if(static::headers_sent()){
-			return false;
+		$cli=Request::isCLI();
+		if($this->isSent()) return false;
+		if(!$cli && static::headers_sent()) return false;
+		$this->sent=true;
+		$this->triggerBeforeSend();
+		if(!$cli) static::addHeaders($this->getHeaders());
+		http_response_code($this->getHttpCode());
+		if($this->isFixed()){
+			## Si es fixed, se ignoran las banderas globales
+			if(!$cli && ($this->isGz() || $this->isCloseConn())){
+				if(!$this->isIncludeBuffer()) static::clearBuffer();
+				static::flatBuffer($this->isGz());
+				$this->flushContent();
+				if($this->isCloseConn()){
+					$length=ob_get_length();
+					static::addHeaders([
+						'Content-Length'=>$length,
+						'Connection'=>'close',
+					]);
+				}
+			}
+			else{
+				if(!$this->isIncludeBuffer()) static::clearBuffer();
+				static::flushBuffer();
+				$this->flushContent();
+			}
+			static::flushBuffer();
 		}
-		static::addHeaders($this->extraHeaders);
-		$this->mergeContent(static::isTryGlobalGZ());
-		http_response_code($this->http_code);
-		if($this->isCloseConn() || (!$this->isGz() && static::isTryGlobalCloseConn())){
-			$length=ob_get_length();
-			header('Content-Length: '.$length, true);
-			header('Connection: close', true);
-			if($length==0) echo "\0";
+		elseif($this->isGz() || $this->isCloseConn() || static::isTryGlobalGZ() || static::isTryGlobalCloseConn()){
+			if(!$this->isIncludeBuffer()) static::clearBuffer();
+			static::flatBuffer($this->isGz() || (static::isTryGlobalGZ() && !$this->isCloseConn()));
+			$this->flushContent();
+			if(!$cli && ($this->isCloseConn() || (static::isTryGlobalCloseConn() && !$this->isGz()))){
+				$length=ob_get_length();
+				static::addHeaders([
+					'Content-Length'=>$length,
+					'Connection'=>'close',
+				]);
+				if($length==0) echo "\0";
+			}
+			static::flushBuffer();
 		}
-		static::flushBuffer();
+		else{
+			if(!$this->isIncludeBuffer()) static::clearBuffer();
+			static::flushBuffer();
+			$this->flushContent();
+		}
+		$this->triggerAfterSend();
 		return true;
 	}
 
@@ -264,17 +407,7 @@ class Response{
 	 * @return bool
 	 */
 	public function isIncludeBuffer(): bool{
-		return $this->include_buffer;
-	}
-
-	public function &download(string $name='download.tmp'){
-		$this->extraHeaders['Content-Disposition']='attachment; filename='.$name;
-		return $this;
-	}
-
-	public function &noDownload(){
-		unset($this->extraHeaders['Content-Disposition']);
-		return $this;
+		return $this->incBuffer;
 	}
 
 	public function hasContent(){
@@ -283,33 +416,28 @@ class Response{
 
 	public function &noContent(){
 		$this->content=null;
+		$this->fixed=false;
 		return $this;
 	}
 
 	public function &content(string $content){
+		if($this->isFixed()) return $this;
 		$this->content=$content;
 		return $this;
 	}
 
-	public function &contentFile(string $filename, $context=null){
-		$res=fopen($filename, 'r', false, $context);
-		if(is_resource($res)){
-			$this->content=$res;
-		}
-		$this->noContent();
+	public function &fixContent(callable $fixedFunc, ...$content){
+		if($this->isFixed()) return $this;
+		$this->content=$content;
+		$this->fixed=$fixedFunc;
 		return $this;
 	}
 
 	/**
-	 * @param null|resource $res
-	 * @return $this
+	 * @return bool
 	 */
-	public function &contentResource($res){
-		if(is_resource($res)){
-			$this->content=$res;
-		}
-		$this->noContent();
-		return $this;
+	public function isFixed(): bool{
+		return !!$this->fixed;
 	}
 
 	/**
@@ -320,8 +448,7 @@ class Response{
 	 */
 	public function &headers(array $headers){
 		foreach($headers as $name=>$value){
-			if(is_null($value)) unset($this->extraHeaders[mb_convert_case(trim($name), MB_CASE_TITLE)]);
-			else $this->extraHeaders[mb_convert_case(trim($name), MB_CASE_TITLE)]=strval($value);
+			$this->header($name, $value);
 		}
 		return $this;
 	}
@@ -330,45 +457,85 @@ class Response{
 	 * @return array
 	 */
 	public function getHeaders(){
-		return $this->extraHeaders;
+		return $this->headers;
 	}
 
-	public function get_content_type(){
-		return $this->extraHeaders['Content-Type'] ?? null;
+	public function getHeader(string $name){
+		return $this->headers[mb_convert_case(trim($name), MB_CASE_TITLE)] ?? null;
 	}
 
-	public function &content_type(?string $content_type){
-		if(is_string($content_type)) $this->extraHeaders['Content-Type']=$content_type;
-		else unset($this->extraHeaders['Content-Type']);
+	public function &header(string $name, ?string $value){
+		if(strpos($name, ':')>0){
+			list($name, $value)=explode(':', $name, 2);
+		}
+		if(is_null($value)) unset($this->headers[mb_convert_case(trim($name), MB_CASE_TITLE)]);
+		else $this->headers[mb_convert_case(trim($name), MB_CASE_TITLE)]=strval($value);
 		return $this;
 	}
 
-	public static function &r_file($filename, $context=null, $mime=null): self{
-		return (new static($mime ?? 'application/octet-stream'))->contentFile($filename, $context);
+	public function &download(string $name='download.tmp'){
+		return $this->header('Content-Disposition', 'attachment; filename='.$name);
 	}
 
-	public static function &r_resource($resource, $mime=null): self{
-		return (new static($mime ?? 'application/octet-stream'))->contentResource($resource);
+	public function &noDownload(){
+		return $this->header('Content-Disposition', null);
 	}
 
-	public static function &r_json($data): self{
-		return (new static('application/json'))->content(json_encode($data));
+	public function get_content_type(){
+		return $this->getHeader('Content-Type');
 	}
 
-	public static function &r_text(string $text): self{
-		return (new static('text/plain'))->content($text);
+	public function &content_type(?string $content_type){
+		return $this->header('Content-Type', $content_type);
 	}
 
-	public static function &r_html(string $html): self{
-		return (new static('text/html'))->content($html);
+	public function __clone(){
+		$this->sent=false;
 	}
 
-	public static function &r_redirect(string $location): self{
-		return (new static())->headers(['location'=>$location])->httpCode(302);
+	public static function &r_file(string $filename, $mime=null, ?string $download=null){
+		$new=null;
+		if(is_file($filename)){
+			$new=new static(null, $mime ?? 'application/octet-stream');
+			$new->header('Content-Length', filesize($filename));
+			$new->header('Connection', 'close');
+			if(is_string($download)) $new->download($download);
+			$new->fixContent('readfile', $filename);
+		}
+		return $new;
 	}
 
-	public static function &r_empty(): self{
-		return (new static())->httpCode(204);
+	public static function &r_resource($resource, $mime=null){
+		$new=null;
+		if(is_resource($resource)){
+			$new=new static(null, $mime ?? 'application/octet-stream');
+			$new->fixContent('fpassthru', $resource);
+		}
+		return $new;
+	}
+
+	public static function &r_json($data){
+		return (new static(null, 'application/json'))->content(json_encode($data));
+	}
+
+	public static function &r_text(string $text, $buffer=false){
+		return (new static(null, 'text/plain'))->content($text)->includeBuffer($buffer);
+	}
+
+	public static function &r_html(string $html, $buffer=false){
+		return (new static(null, 'text/html'))->content($html)->includeBuffer($buffer);
+	}
+
+	public static function &r_redirect(string $location){
+		return (new static(302))->header('location', $location);
+	}
+
+	public static function r_empty(){
+		return new static(204);
+	}
+
+	public static function r_forbidden(){
+		return new static(403);
 	}
 
 }
