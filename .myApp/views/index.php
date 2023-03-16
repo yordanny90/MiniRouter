@@ -4,7 +4,7 @@ global $ROUTE;
 <html>
 <head>
 	<title>Ejemplo</title>
-	<base href="<?=$_SERVER['SCRIPT_NAME']?>">
+	<base href="<?=APP_SCRIPT?>">
 	<meta charset="<?=ini_get('default_charset')?>">
 </head>
 <body>
