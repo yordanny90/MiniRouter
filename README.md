@@ -47,7 +47,7 @@ Crear el archivo `index.php` que procesa todos los request al servidor
 ```PHP
 define('APP_DIR', __DIR__.'/.example');
 require ".MRcore.phar";
-require "phar://.MRcore.phar/sample/router_http.php";
+\MiniRouter\Sample::router_http();
 ```
 
 Crear el archivo `.example/Routes/AppWeb/index.php` para establecer los endpoints `index` e `index.go` por metodo `GET`
@@ -61,7 +61,7 @@ use MiniRouter\Response;
 class index{
 	static function GET_(){
 		?>
-		<h1><a href="<?=$_SERVER['SCRIPT_NAME']?>/index.go/Hola mundo">Go</a></h1>
+		<h1><a href="/index.go/Hola mundo">Go</a></h1>
 		<?php
 	}
 
@@ -75,7 +75,7 @@ class index{
 
 Iniciar el servidor desde la carpeta raíz con el comando:
 ```shell
-php -s localhost:8000 -F index.php
+php -S localhost:8000 -F .
 ```
 
 ### Cambiar el separador de la ruta
@@ -85,15 +85,18 @@ Cualquier otros caracter tendra el mismo nivel de optimización que el punto, po
 
 Sin embargo la cantidad de caracteres utilizados con este fin son limitados, vea la información en la documentación de la función `Router::setSplitter()`
 
-Ahora vamos a obtener el código del archivo `router_http.php` que se utilizó anteriormente y lo guardamos en `.example/init.php`, agregando el llamado a la función,  así:
+Ahora vamos a crear el archivo `.example/router_http.php`, así:
 
 ```PHP
 <?php
 if(!defined('APP_DIR')) throw new Exception('App dir missing', 1);
 
-use MiniRouter\Router;
 use MiniRouter\Response;
 
+if(\MiniRouter\Request::isCLI()){
+	Response::r_forbidden()->content('Execution by CLI is not allowed')->send();
+	exit;
+}
 try{
 	Response::flatBuffer();
 	Response::addHeaders([
@@ -101,15 +104,13 @@ try{
 		'Access-Control-Allow-Credentials'=>'true',
 		'Access-Control-Allow-Headers'=>'Content-Type, Authorization, X-Requested-With',
 	]);
-	$router=Router::startHttp('AppWeb');
+	$router=\MiniRouter\Router::startHttp('AppWeb');
 	$router->setSplitter('-'); // CAMBIO DE SEPARADOR
 	\MiniRouter\classloader(APP_DIR.'/Routes', '', '.php', $router->getMainNamespace(), true);
 	$router->prepare();
 	global $ROUTE;
 	$ROUTE=$router->getRoute();
 	unset($router);
-	// Se encontró la función que se ejecutará
-	// Ahora que la ejecución está preparada. Aqui puede realizar conexiones a bases de datos, inicio de sesión u otros servicios externos que puedan retrazar la ejecución
 	$result=$ROUTE->call();
 	if(is_a($result, Response::class)){
 		$result->send();
@@ -119,11 +120,11 @@ try{
 }
 ```
 
-El archivo `index.php` dejara de llamar al router_http.php dentro del PHAR, y pasara utilizar el que personalizamos anteriormente, así:
+El archivo `index.php` dejara de llamar a `\MiniRouter\Sample::router_http()`, y se pasará utilizar el php anterior, así:
 ```PHP
 define('APP_DIR', __DIR__.'/.example');
 require ".MRcore.phar";
-//require "phar://.MRcore.phar/sample/router_http.php";
+//\MiniRouter\Sample::router_http();
 require APP_DIR."/router_http.php";
 ```
 
@@ -140,7 +141,7 @@ class index{
 	static function GET_(){
 		// SOLO SE CAMBIA EL PUNTO POR UN "/"
 		?>
-		<h1><a href="<?=$_SERVER['SCRIPT_NAME']?>/index-go/Hola mundo">Go</a></h1>
+		<h1><a href="/index-go/Hola mundo">Go</a></h1>
 		<?php
 	}
 
@@ -153,7 +154,7 @@ class index{
 
 Iniciar el servidor desde la carpeta raíz con el comando:
 ```shell
-php -s localhost:8000 -F index.php
+php -S localhost:8000 -F .
 ```
 
 ---
