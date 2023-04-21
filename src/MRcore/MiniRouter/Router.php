@@ -278,7 +278,7 @@ class Router{
 	private function prepareForHTTP(?string $method, ?string $path): void{
 		if(Request::isCLI()) throw new $this->classE('Execution by CLI is not allowed', RouteException::CODE_EXECUTION);
 		if(Response::headers_sent()) throw new $this->classE('Headers has been sent', RouteException::CODE_EXECUTION);
-		$path=self::fixPath($path ?? Request::getPath());
+		$path=self::fixPath($path ?? Request::getPathInfo());
 		if($path==='') $path=self::fixPath($this->default_path);
 		$this->loadEndPoint($method ?? Request::getMethod(), $path);
 	}

@@ -27,7 +27,7 @@ class ejemplo1{
 
 	function GET_this(...$_){
 		$this->method=Request::getMethod();
-		$this->path=Request::getPath();
+		$this->path=Request::getPathInfo();
 		$this->headerRequest=Request::getAllHeaders();
 		$this->headerResponse=Response::getHeaderList();
 		if(count($_GET)) $this->get=$_GET;
