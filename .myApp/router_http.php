@@ -41,7 +41,7 @@ try{
 				$this->m=null;
 				$this->p=null;
 				// Cambia una ruta de barras (/) por puntos (.), segun el segundo valor
-				if(is_string($p=preg_replace('/^(\w+)\/(json|ini)(\b|\/)/', '$1.$2$3', $path, 1, $c)) && $c){
+				if(is_string($p=preg_replace('/^(\w+)\/(json|ini)(\/.*)?$/', '$1.$2$3', $path, 1, $c)) && $c){
 					$this->p=$p;
 					return true;
 				}
