@@ -2,17 +2,14 @@
 
 use MiniRouter\Response;
 
-// Habilitarlo para el ambiente de producción
-//error_reporting(0);
-
-// Se carga la librería del MiniRouter
 require_once __DIR__.'/init.php';
 if(\MiniRouter\Request::isCLI()){
 	Response::r_forbidden()->content('Execution by CLI is not allowed')->send();
 	exit;
 }
 try{
-	if(!define('APP_SCRIPT', dirname(\MiniRouter\Request::getRealScript()))) throw new Exception('APP_SCRIPT already loaded', 1);
+	if(!define('APP_SCRIPT', \MiniRouter\Request::getScript())) throw new Exception('APP_SCRIPT already loaded', 1);
+	if(!define('HREF', basename(APP_SCRIPT).'/')) throw new Exception('HREF already loaded', 1);
 	Response::flatBuffer();
 	Response::tryGlobalGZ(true);
 	call_user_func(function(){
@@ -35,6 +32,7 @@ try{
 		]);
 		$router->setClassException(MyRouteException::class);
 		\MiniRouter\classloader(APP_DIR.'/Routes', '', '.php', $router->getMainNamespace(), true);
+
 		class miEnrutador extends \MiniRouter\ReRouter{
 			public $m;
 			public $p;
@@ -43,7 +41,7 @@ try{
 				$this->m=null;
 				$this->p=null;
 				// Cambia una ruta de barras (/) por puntos (.), segun el segundo valor
-				if(is_string($p=preg_replace('/^(\w+)\/(json|ini)(\b|\/)/', '$1.$2$3',$path, 1, $c)) && $c){
+				if(is_string($p=preg_replace('/^(\w+)\/(json|ini)(\b|\/)/', '$1.$2$3', $path, 1, $c)) && $c){
 					$this->p=$p;
 					return true;
 				}
@@ -58,6 +56,7 @@ try{
 				return $this->p;
 			}
 		}
+
 		$router->setReRouter(new miEnrutador());
 		$router->prepare();
 		######################################
@@ -71,8 +70,7 @@ try{
 			DatasetExport::saveTo($listFile, $l, 'Último cambio: '.date(DATE_W3C));
 			touch($listFile, filemtime($router->getClassFile()));
 		}
-		/* */
-		######################################
+		/* */ ######################################
 		// Se encontró la ruta del endpoint
 		// Ahora que se encontró la ruta. Aqui puede realizar validaciones de seguridad antes de ejecutar el endpoint
 		if($router->getMethod()==='OPTIONS'){

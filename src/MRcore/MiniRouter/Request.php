@@ -77,8 +77,8 @@ class Request{
 		return getcwd()!==static::getRootDir();
 	}
 
-	public static function getPath(){
-		if(!is_null($_SERVER['PATH_INFO'] ?? null)) return $_SERVER['PATH_INFO'];
+	public static function getPathInfo(){
+		if(($_SERVER['PATH_INFO']??'')!=='' || !preg_match('/nginx/i', $_SERVER['SERVER_SOFTWARE']??'')) return $_SERVER['PATH_INFO']??null;
 		# Fix para nginx
 		$valid=false;
 		$preg='/^'.preg_quote(static::getRealScript(), '/').'(\/[^\?]*)/';

@@ -1,27 +1,33 @@
 <?php
 //readfile(__DIR__.'/phar_loader.php');
-$alias='MRcore.phar';
-$stub=<<<CODE
-<?php
-Phar::mapPhar("MRcore.phar");
-require "phar://MRcore.phar/loader.php";
-__HALT_COMPILER();
-CODE;
 $phar_file=__DIR__.'/.MRcore.phar';
-$phar_file_gz=$phar_file.'.gz';
 echo "Eliminando archivos antiguos...".PHP_EOL;
-unlink($phar_file);
-unlink($phar_file_gz);
+if(file_exists($phar_file)) unlink($phar_file);
+if(file_exists($phar_file.'.gz')) unlink($phar_file.'.gz');
 
 $t=time();
 echo "Creando nuevo archivo PHAR...".PHP_EOL;
-$phar=new Phar($phar_file, 0, $alias);
-$phar->buildFromDirectory(__DIR__.'/.MRcore');
-$phar->addFile(__DIR__.'/README.md', 'README.md');
+$stub='<?php require "phar://".__FILE__."/MRcore/loader.php"; __HALT_COMPILER();';
+$phar=new Phar($phar_file);
 $phar->setStub($stub);
+date_default_timezone_set('america/costa_rica');
+$phar->setMetadata([
+	'author'=>'Yordanny Mejías',
+	'email'=>'yordanny90@gmail.com',
+    'description'=>'MiniRouter Core',
+	'version'=>'0.1',
+	'update'=>date(DATE_W3C),
+	'repo'=>'https://github.com/yordanny90/MiniRouter',
+]);
+$phar->buildFromDirectory(__DIR__.'/src');
+$phar->addFile(__DIR__.'/README.md', 'README.md');
 
 echo "Comprimiendo archivo PHAR...".PHP_EOL;
 $pharGZ=$phar->compress(Phar::GZ);
 $pharGZ->setStub($stub);
+print_r($pharGZ->getMetadata());
+print_r($pharGZ->getSignature());
+print_r($pharGZ->getSubPath());
+print_r($pharGZ->getStub());
 
 echo "Completado! ".(time()-$_SERVER['REQUEST_TIME']).'s';

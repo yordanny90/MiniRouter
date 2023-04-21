@@ -8,14 +8,14 @@ class ArgCLI{
 	/**
 	 * Expresiones regulares para validar nombres de argumentos
 	 */
-	const REGEX_NAME_VAR='/^\-+\w+$/';
-	const REGEX_NAME_FLAG='/^\-\w$/';
+	const REGEX_NAME_VAR='/^\-\w+$/';
+	const REGEX_NAME_FLAG='/^\-[\w\?]$/';
 	const REGEX_NAME_FLAG_LONG='/^\-\-\w+$/';
 	/**
 	 * Expresiones regulares para analizar argumentos
 	 */
-	const REGEX_ARG_VAR='/^(\-+\w+)\=/';
-	const REGEX_ARG_FLAG='/^\-(\w+)$/';
+	const REGEX_ARG_VAR='/^(\-\w+)[\:]/';
+	const REGEX_ARG_FLAG='/^\-([\w\?]+)$/';
 	const REGEX_ARG_FLAG_LONG='/^\-\-(\w+)$/';
 
 	public static function getScript(){
