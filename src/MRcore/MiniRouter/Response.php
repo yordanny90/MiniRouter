@@ -46,15 +46,15 @@ class Response{
 	 * @see Response::GZ()
 	 */
 	public static function tryGlobalGZ(bool $tryGZ): void{
-		static::$tryGZ=$tryGZ;
-		if(static::$tryGZ) static::tryGlobalCloseConn(false);
+		self::$tryGZ=$tryGZ;
+		if(self::$tryGZ) static::tryGlobalCloseConn(false);
 	}
 
 	/**
 	 * @return bool
 	 */
 	public static function isTryGlobalGZ(): bool{
-		return static::$tryGZ;
+		return self::$tryGZ;
 	}
 
 	/**
@@ -65,15 +65,15 @@ class Response{
 	 * @see Response::closeConn()
 	 */
 	public static function tryGlobalCloseConn(bool $tryCloseConn): void{
-		static::$tryCloseConn=$tryCloseConn;
-		if(static::$tryCloseConn) static::tryGlobalGZ(false);
+		self::$tryCloseConn=$tryCloseConn;
+		if(self::$tryCloseConn) static::tryGlobalGZ(false);
 	}
 
 	/**
 	 * @return bool
 	 */
 	public static function isTryGlobalCloseConn(): bool{
-		return static::$tryCloseConn;
+		return self::$tryCloseConn;
 	}
 
 	/**
