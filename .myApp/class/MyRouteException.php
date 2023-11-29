@@ -17,4 +17,12 @@ class MyRouteException extends \MiniRouter\RouteException{
 	protected function responseExecution(){
 		return AppResponse::r_text('Error de ejecución. '.PHP_EOL.$this->getMessage())->httpCode($this->code);
 	}
+
+	protected function responseBadRequest(){
+		return AppResponse::r_text('Solicitud inválida. '.PHP_EOL.$this->getMessage())->httpCode($this->code);
+	}
+
+	protected function responseUnauthorized(){
+		return AppResponse::r_text('No autorizado. '.PHP_EOL.$this->getMessage())->httpCode($this->code);
+	}
 }
