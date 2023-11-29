@@ -22,6 +22,8 @@ class DatasetExport{
 		if(!is_string($str)){
 			return false;
 		}
-		return file_put_contents($filename, $str);
+        $res=file_put_contents($filename, $str);
+        chmod($filename, 0666);
+        return $res;
 	}
 }
