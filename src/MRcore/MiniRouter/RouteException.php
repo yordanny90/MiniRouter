@@ -86,11 +86,19 @@ class RouteException extends \Exception{
 		return Response::r_text('Error. '.PHP_EOL.$this->getMessage())->httpCode(500);
 	}
 
-	public static function simpleTrace(\Throwable $e, $lvl=0){
+	public static function simpleTrace(Throwable $e, int $extra_levels=0, ?int $max_lines=null, int $lvl=0){
 		$tab=str_repeat('    ', $lvl);
 		$trace=$tab.get_class($e).' '.$e->getCode().'. '.$e->getMessage().PHP_EOL;
+		if(is_int($max_lines) && --$max_lines<=0) return $trace;
+		$cwd=str_replace('\\', '/', getcwd());
 		foreach($e->getTrace() as $i=>$l){
-			$trace.=$tab.'#'.$i.' '.basename($l['file'] ?? '?').'('.basename($l['line'] ?? '?').'): '.($l['class'] ?? '').($l['type'] ?? '').($l['function'] ?? '').'(';
+			if(isset($l['file'])){
+				$l['file']=str_replace($cwd, '.', str_replace('\\', '/', $l['file']), $count);
+				if($count==0){
+					$l['file']=basename($l['file']);
+				}
+			}
+			$trace.=$tab.'#'.$i.' '.($l['file'] ?? '?').(isset($l['line'])?'('.$l['line'].')':'').': '.($l['class'] ?? '').($l['type'] ?? '').($l['function'] ?? '').'(';
 			if(is_array($l['args'] ?? null)){
 				$trace.=implode(', ', array_map(function($d){
 					$type=gettype($d);
@@ -99,9 +107,11 @@ class RouteException extends \Exception{
 				}, $l['args']));
 			}
 			$trace.=')'.PHP_EOL;
+			if(is_int($max_lines) && --$max_lines<=0) return $trace;
 		}
-		if($e->getPrevious() && $lvl<10){
-			$trace.=self::simpleTrace($e->getPrevious(), $lvl+1);
+		unset($i, $l, $tab);
+		if($e->getPrevious() && --$extra_levels>=0){
+			$trace.=self::simpleTrace($e->getPrevious(), $extra_levels, $max_lines, $lvl+1);
 		}
 		return $trace;
 	}
