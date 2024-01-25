@@ -73,31 +73,17 @@ try{
 		/* */ ######################################
 		// Se encontró la ruta del endpoint
 		// Ahora que se encontró la ruta. Aqui puede realizar validaciones de seguridad antes de ejecutar el endpoint
-		if($router->getMethod()==='OPTIONS'){
-			$allows=$router->getRouteAllow($router->getName());
-			if(!in_array('OPTIONS', $allows)){
-				(new Response())->header('Allow', implode(', ', $allows))->send();
-				return;
-			}
-		}
-		if($router->getMethod()==='HEAD'){
-			$allows=$router->getRouteAllow($router->getName());
-			if(!in_array('HEAD', $allows)){
-				if(in_array('GET', $allows)){
-					(new Response())->send();
-					return;
-				}
-				else{
-					Response::r_not_found()->send();
-					return;
-				}
-			}
-		}
+        if($router->getMethod()==='OPTIONS' && in_array($router->getMethod(), $router->getAllows())){
+            $allows=$router->getRouteAllow($router->getName());
+            if(!in_array('OPTIONS', $allows)){
+                Response::r_empty()->headers([
+                    'Allow'=>implode(', ', $allows)
+                ])->send();
+                return;
+            }
+        }
 		global $ROUTE;
 		$ROUTE=$router->getRoute();
-		Response::addHeaders([
-			'Allow'=>implode($router->getRouteAllow($router->getName())),
-		]);
 		unset($router);
 		// Se encontró la función que se ejecutará
 		// Ahora que la ejecución está preparada. Aqui puede realizar conexiones a bases de datos, inicio de sesión u otros servicios externos que puedan retrazar la ejecución

@@ -387,18 +387,22 @@ class Router{
 	}
 
 	/**
-	 * @param bool $strict_parrams Default: true. Valida que los parámetros recibidos no excedan los esperados.
+	 * @param bool $strict_params Default: true. Valida que los parámetros recibidos no excedan los esperados.
 	 *
 	 * Aunque se deshabilite seguira validando que cumpla con los parámetros mínimos
 	 * @return Route
 	 * @throws RouteException
 	 */
-	public function getRoute(bool $strict_parrams=true): Route{
+	public function getRoute(bool $strict_params=true): Route{
 		if(!$this->_class) throw new $this->classE('Class', RouteException::CODE_NOTFOUND);
-		if($this->getAllows() && !in_array($this->getMethod(), $this->getAllows())){
+		$allows=$this->getRouteAllow($this->getName());
+		if(count($allows)>0 && !in_array($this->getMethod(), $allows)){
+			Response::addHeaders([
+				'Allow'=>implode(', ', $allows)
+			], true);
 			throw new $this->classE($this->getMethod(), RouteException::CODE_METHODNOTALLOWED);
 		}
-		if(!$this->_fn) throw new $this->classE('Funtion', RouteException::CODE_NOTFOUND);
+		if(count($allows)==0 || !$this->_fn) throw new $this->classE('Funtion', RouteException::CODE_NOTFOUND);
 		if(!$this->_fn->isPublic()) throw new $this->classE('Function', RouteException::CODE_FORBIDDEN);
 		if(!$this->_class->isInstantiable() && !$this->_fn->isStatic()) throw new $this->classE('Function', RouteException::CODE_FORBIDDEN);
 		$path_class=static::class_to_path($this->mainNS, $this->_class->getName(), $this->getSplitter());
@@ -410,7 +414,7 @@ class Router{
 		if($param_missing>0){
 			throw new $this->classE('Params missing: '.$param_missing, RouteException::CODE_NOTFOUND);
 		}
-		elseif($strict_parrams && !$route->isParamsInfinite() && $route->getParams()<count($this->_params)){
+		elseif($strict_params && !$route->isParamsInfinite() && $route->getParams()<count($this->_params)){
 			throw new $this->classE('Too many params', RouteException::CODE_NOTFOUND);
 		}
 		$route->exec_params=$this->_params;
