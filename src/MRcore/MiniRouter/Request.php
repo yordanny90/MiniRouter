@@ -7,14 +7,14 @@ namespace MiniRouter;
  * @package MiniRouter
  */
 class Request{
-	const CONTENTYPE_NONE='';
-	const CONTENTYPE_PLAIN='text/plain';
-	const CONTENTYPE_HTML='text/html';
-	const CONTENTYPE_JSON='application/json';
-	const CONTENTYPE_JSONP='application/javascript';
-	const CONTENTYPE_XML='application/xml';
-	const CONTENTYPE_FORM_URLENCODED='application/x-www-form-urlencoded';
-	const CONTENTYPE_FORM_DATA='multipart/form-data';
+	const CONTENT_TYPE_NONE='';
+	const CONTENT_TYPE_PLAIN='text/plain';
+	const CONTENT_TYPE_HTML='text/html';
+	const CONTENT_TYPE_JSON='application/json';
+	const CONTENT_TYPE_JSONP='application/javascript';
+	const CONTENT_TYPE_XML='application/xml';
+	const CONTENT_TYPE_FORM_URLENCODED='application/x-www-form-urlencoded';
+	const CONTENT_TYPE_FORM_DATA='multipart/form-data';
 
 	private function __construct(){ }
 
