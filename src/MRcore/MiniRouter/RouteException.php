@@ -86,7 +86,7 @@ class RouteException extends \Exception{
 		return Response::r_text('Error. '.PHP_EOL.$this->getMessage())->httpCode(500);
 	}
 
-	public static function simpleTrace(Throwable $e, int $extra_levels=0, ?int $max_lines=null, int $lvl=0){
+	public static function simpleTrace(\Throwable $e, int $extra_levels=0, ?int $max_lines=null, int $lvl=0){
 		$tab=str_repeat('    ', $lvl);
 		$trace=$tab.get_class($e).' '.$e->getCode().'. '.$e->getMessage().PHP_EOL;
 		if(is_int($max_lines) && --$max_lines<=0) return $trace;
