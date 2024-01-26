@@ -423,6 +423,7 @@ class Response{
 	public function &content(string $content){
 		if($this->isFixed()) return $this;
 		$this->content=$content;
+		$this->fixed=false;
 		return $this;
 	}
 
@@ -505,10 +506,20 @@ class Response{
 		return $new;
 	}
 
-	public static function &r_resource($resource, $mime=null){
+	/**
+	 * @param $resource
+	 * @param $mime
+	 * @param string|null $download
+	 * @param null|string $close_gz null|"close"|"gz"
+	 * @return static|null
+	 */
+	public static function &r_resource($resource, $mime=null, ?string $download=null, ?string $close_gz=null){
 		$new=null;
 		if(is_resource($resource)){
 			$new=new static(null, $mime ?? 'application/octet-stream');
+			if(is_string($download)) $new->download($download);
+			if($close_gz=='gz') $new->GZ(true);
+			elseif($close_gz=='close') $new->closeConn(true);
 			$new->fixContent('fpassthru', $resource);
 		}
 		return $new;
