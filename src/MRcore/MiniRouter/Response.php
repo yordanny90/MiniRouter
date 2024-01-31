@@ -109,7 +109,7 @@ class Response{
 			[$k, $v]=explode(':', $h, 2);
 			$k=mb_convert_case(trim($k), MB_CASE_TITLE);
 			$v=trim($v);
-			if(is_null($list[$k])){
+			if(!isset($list[$k])){
 				$list[$k]=$v;
 			}
 			else{

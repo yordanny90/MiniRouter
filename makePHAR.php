@@ -3,7 +3,6 @@ ini_set('default_charset', 'UTF-8');
 date_default_timezone_set('america/costa_rica');
 //readfile(__DIR__.'/phar_loader.php');
 $phar_file=__DIR__.'/build/MRcore.phar';
-mkdir(dirname($phar_file), 0777);
 echo "Eliminando archivos antiguos...".PHP_EOL;
 if(file_exists($phar_file)) unlink($phar_file);
 if(file_exists($phar_file.'.gz')) unlink($phar_file.'.gz');
