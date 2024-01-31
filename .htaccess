@@ -7,10 +7,12 @@ RewriteRule .* %{ENV:BASE}index.php/$0 [QSA,L]
 
 </IfModule>
 
+# Protege los archivos y carpetas que inician con un punto
 <FilesMatch ^\.>
 Deny from all
 </FilesMatch>
 
+# Protege los archivos phar y phar.gz
 <FilesMatch (\.phar|\.phar\.gz)$>
 Deny from all
 </FilesMatch>
