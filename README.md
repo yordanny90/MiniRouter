@@ -1,5 +1,8 @@
 [repo]: https://github.com/yordanny90/MiniRouter
 [iconGit]: http://www.google.com/s2/favicons?domain=www.github.com
+
+### Esta versión aún está en desarrollo. ###
+
 # MiniRouter
 
 Librería para el enrutamiento de los request entrantes y organización de código de los endpoints.
@@ -92,12 +95,10 @@ Por ejemplo. Si queremos conservar el separador por defecto `.`, pero permitir q
 
 ```PHP
 <?php
-class miEnrutador extends \MiniRouter\ReRouter{
-    public $m;
+class miEnrutador implements \MiniRouter\ReRouter{
     public $p;
 
-    function change(string $method, string $path): bool{
-        $this->m=null;
+    public function change(string $path): bool{
         $this->p=null;
         // Cambia una ruta de barras (/) por puntos (.), segun el segundo valor
         if(preg_match('/^account\/info(\/.*)?$/', $path, $m)){
@@ -115,11 +116,7 @@ class miEnrutador extends \MiniRouter\ReRouter{
         return false;
     }
 
-    public function getMethod(): ?string{
-        return $this->m;
-    }
-
-    public function getPath(): ?string{
+    public function newPath(): ?string{
         return $this->p;
     }
 }
@@ -268,6 +265,3 @@ php -S localhost:8000 -F .
 ### Ejemplo myApp
 
 La carpeta `.myApp` en repositorio contiene un ejemplo mas desarrollado que el anterior
-
----
-### Esta versión aún está en desarrollo. ###
