@@ -101,16 +101,51 @@ class Response{
 
 	/**
 	 * Obtiene la lista de headers de la respuesta
-	 * @return array
+	 * @return string[]
 	 */
 	public static function getHeaderList(){
 		$list=[];
 		foreach(headers_list() as $h){
-			$h=explode(':', $h, 2);
-			$h[0]=mb_convert_case($h[0], MB_CASE_TITLE);
-			$list[$h[0]]=trim($h[1]);
+			[$k, $v]=explode(':', $h, 2);
+			$k=mb_convert_case(trim($k), MB_CASE_TITLE);
+			$v=trim($v);
+			if(is_null($list[$k])){
+				$list[$k]=$v;
+			}
+			else{
+				$list[$k].=', '.$v;
+			}
 		}
 		return $list;
+	}
+
+	/**
+	 * Obtiene la lista de headers de la respuesta
+	 * @param string $name
+	 * @param bool $as_array
+	 * @return array|string|null
+	 */
+	public static function getHeaderVal(string $name, bool $as_array=false){
+		$name=mb_convert_case($name, MB_CASE_TITLE);
+		$val=$as_array?[]:null;
+		foreach(headers_list() as $h){
+			[$k, $v]=explode(':', $h, 2);
+			$k=mb_convert_case($k, MB_CASE_TITLE);
+			if($k===$name){
+				$v=trim($v);
+				if(is_array($val)){
+					$val[]=$v;
+				}
+				elseif(is_null($val)){
+					$val=$v;
+				}
+				else{
+					$val.=', '.$v;
+				}
+			}
+		}
+		if(is_array($val) && count($val)===0) $val=null;
+		return $val;
 	}
 
 	/**
@@ -167,12 +202,12 @@ class Response{
 	/**
 	 * Agrega los headers para enviarlos al cliente (browser).<br>
 	 * Se enviarán cuando el proceso finalize o cuando se envíe una respuesta
-	 * @param array $headers
+	 * @param string[] $headers
 	 * @return bool
 	 */
 	public static function addHeaders(array $headers, $replace=true){
 		foreach($headers as $k=>$v){
-			header($k.': '.$v, $replace);
+			header(trim($k).': '.trim($v), $replace);
 		}
 		return true;
 	}
@@ -423,6 +458,7 @@ class Response{
 	public function &content(string $content){
 		if($this->isFixed()) return $this;
 		$this->content=$content;
+		$this->fixed=false;
 		return $this;
 	}
 
@@ -505,10 +541,20 @@ class Response{
 		return $new;
 	}
 
-	public static function &r_resource($resource, $mime=null){
+	/**
+	 * @param $resource
+	 * @param $mime
+	 * @param string|null $download
+	 * @param null|string $close_gz null|"close"|"gz"
+	 * @return static|null
+	 */
+	public static function &r_resource($resource, $mime=null, ?string $download=null, ?string $close_gz=null){
 		$new=null;
 		if(is_resource($resource)){
 			$new=new static(null, $mime ?? 'application/octet-stream');
+			if(is_string($download)) $new->download($download);
+			if($close_gz=='gz') $new->GZ(true);
+			elseif($close_gz=='close') $new->closeConn(true);
 			$new->fixContent('fpassthru', $resource);
 		}
 		return $new;
