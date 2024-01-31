@@ -10,13 +10,9 @@ class Router{
 	 */
 	protected $splitter='.';
 	/**
-	 * @var string|null Dirección del enpoint utilizada si {@see Router::$path} esta vacío.
+	 * @var string|null Dirección del enpoint utilizada si el path esta vacío.
 	 */
 	private $default_path;
-	/**
-	 * @var string|null Indica la ruta recibida para la ejecución del endpoint. Si es null, el sistema la detectará auntomáticamente
-	 */
-	private $path;
 
 	/**
 	 * @var string El namespace al que deben pertenecer las clases de los endpoint
@@ -27,7 +23,7 @@ class Router{
 	 */
 	private $classE=RouteException::class;
 	/**
-	 * @var ReRouter|null Reencaminador de rutas
+	 * @var ReRouter|null Sobrescribe las rutas
 	 */
 	private $reRouter;
 	/**
@@ -114,13 +110,13 @@ class Router{
 	/**
 	 * Establece el caracter que separa las partes de una ruta en la URL
 	 *
-	 * Solo si utiliza el caracater "/", debe contemplar la posibilidad de aumentar o disminuir el valor en {@see Router::setMaxSubDir()}
+	 * Solo si utiliza el caracater "/", debe contemplar la posibilidad de ajustar el valor en {@see Router::setMaxSubDir()}
 	 * @param string $splitter Default: "." Posibles valores: ".- /"
 	 * @return void
 	 * @throws \Exception Error al intentar utilizar un string que no es de longitud 1, o no está en la lista de caracateres permitidos
 	 */
 	public function setSplitter(string $splitter): void{
-		if(strlen($splitter)!==1 || strpos(".- /", $splitter)===false) throw new \Exception($splitter." invalid splitter");
+		if(!preg_match('/^[\.\- \/]$/', $splitter)) throw new \Exception($splitter." invalid splitter");
 		$this->splitter=$splitter;
 	}
 
@@ -136,20 +132,6 @@ class Router{
 	 */
 	public function setDefaultPath(?string $default_path): void{
 		$this->default_path=$default_path;
-	}
-
-	/**
-	 * @return string|null
-	 */
-	public function getPath(): ?string{
-		return $this->path;
-	}
-
-	/**
-	 * @param string $path
-	 */
-	public function setPath(string $path): void{
-		$this->path=$path;
 	}
 
 	/**
@@ -191,7 +173,7 @@ class Router{
 		if(!class_exists($classE)){
 			throw new \Exception($classE." is not a class");
 		}
-		if(!is_subclass_of($classE, RouteException::class)){
+		if($classE!=RouteException::class && !is_subclass_of($classE, RouteException::class)){
 			throw new \Exception($classE." class does not extend from ".RouteException::class);
 		}
 		$this->classE=$classE;
@@ -241,6 +223,7 @@ class Router{
 	}
 
 	/**
+	 * Se debe indicar antes de {@see Router::prepare()}
 	 * @param ReRouter|null $reRouter
 	 * @return void
 	 */
@@ -304,9 +287,8 @@ class Router{
 	 */
 	private function loadEndPoint(string $method, string $path): void{
 		if(!is_null($this->_class)) return;
-		if($this->reRouter && $this->reRouter->change($method, $path)){
-			$path=self::fixPath($this->reRouter->getPath() ?? $path);
-			$method=$this->reRouter->getMethod() ?? $method;
+		if($this->reRouter && $this->reRouter->change($path)){
+			$path=self::fixPath($this->reRouter->newPath() ?? $path);
 		}
 		$parts=array_filter(explode('/', $path), 'strlen');
 		if(!count($parts)) throw new $this->classE('Class', RouteException::CODE_NOTFOUND);
@@ -349,7 +331,7 @@ class Router{
 		else{
 			$len=0;
 			do{
-				if(++$len>($this->getMaxSubDir()+1)){
+				if(++$len>($this->maxSubDir+1)){
 					throw new $this->classE('Class', RouteException::CODE_NOTFOUND);
 				}
 				$cparts=array_slice($parts, 0, $len);
@@ -395,19 +377,19 @@ class Router{
 	 */
 	public function getRoute(bool $strict_params=true): Route{
 		if(!$this->_class) throw new $this->classE('Class', RouteException::CODE_NOTFOUND);
-		$allows=$this->getRouteAllow($this->getName());
-		if(count($allows)>0 && !in_array($this->getMethod(), $allows)){
+		$allows=$this->getRouteAllow($this->_name);
+		if(count($allows)>0 && !in_array($this->_method, $allows)){
 			Response::addHeaders([
 				'Allow'=>implode(', ', $allows)
 			], true);
-			throw new $this->classE($this->getMethod(), RouteException::CODE_METHODNOTALLOWED);
+			throw new $this->classE($this->_method, RouteException::CODE_METHODNOTALLOWED);
 		}
 		if(count($allows)==0 || !$this->_fn) throw new $this->classE('Funtion', RouteException::CODE_NOTFOUND);
 		if(!$this->_fn->isPublic()) throw new $this->classE('Function', RouteException::CODE_FORBIDDEN);
 		if(!$this->_class->isInstantiable() && !$this->_fn->isStatic()) throw new $this->classE('Function', RouteException::CODE_FORBIDDEN);
 		$path_class=static::class_to_path($this->mainNS, $this->_class->getName(), $this->getSplitter());
 		$route=Route::create($path_class, $this->_fn, $this->getSplitter());
-		if(!$route || $route->getMethod()!==$this->getMethod() || $route->getName()!==$this->getName()){
+		if(!$route || $route->getMethod()!==$this->_method || $route->getName()!==$this->_name){
 			throw new $this->classE('Route', RouteException::CODE_NOTFOUND);
 		}
 		$param_missing=$route->getReqParams()-count($this->_params);

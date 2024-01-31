@@ -8,11 +8,9 @@ RewriteRule .* %{ENV:BASE}index.php/$0 [QSA,L]
 </IfModule>
 
 <FilesMatch ^\.>
-Order Allow,Deny
 Deny from all
 </FilesMatch>
 
-<FilesMatch \.phar$>
-Order Allow,Deny
+<FilesMatch (\.phar|\.phar\.gz)$>
 Deny from all
 </FilesMatch>

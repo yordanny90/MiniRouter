@@ -33,11 +33,10 @@ try{
 		$router->setClassException(MyRouteException::class);
 		\MiniRouter\classloader(APP_DIR.'/Routes', '', '.php', $router->getMainNamespace(), true);
 
-		class miEnrutador extends \MiniRouter\ReRouter{
-			public $m;
+		class miEnrutador implements \MiniRouter\ReRouter{
 			public $p;
 
-			function change(string $method, string $path): bool{
+			function change(string $path): bool{
 				$this->m=null;
 				$this->p=null;
 				// Cambia una ruta de barras (/) por puntos (.), segun el segundo valor
@@ -48,11 +47,7 @@ try{
 				return false;
 			}
 
-			public function getMethod(): ?string{
-				return $this->m;
-			}
-
-			public function getPath(): ?string{
+			public function newPath(): ?string{
 				return $this->p;
 			}
 		}
@@ -60,17 +55,6 @@ try{
 		$router->setReRouter(new miEnrutador());
 		$router->prepare();
 		######################################
-		## Este código genera archivos JSON con todos los endpoints de la clase a la que se esta accediendo
-		## No se recomienda activar este código en ambientes productivos
-		/* */
-		$listFile=APP_DIR.'/../.server/'.$router->getMainNamespace().'/'.$router->getClassPath().'.php';
-		if(!is_file($listFile) || filemtime($listFile)!=filemtime($router->getClassFile())){
-			if(!is_dir(dirname($listFile))) mkdir(dirname($listFile), 0777, true);
-			$l=$router->getRouteList();
-			DatasetExport::saveTo($listFile, $l, 'Último cambio: '.date(DATE_W3C));
-			touch($listFile, filemtime($router->getClassFile()));
-		}
-		/* */ ######################################
 		// Se encontró la ruta del endpoint
 		// Ahora que se encontró la ruta. Aqui puede realizar validaciones de seguridad antes de ejecutar el endpoint
         if($router->getMethod()==='OPTIONS' && in_array($router->getMethod(), $router->getAllows())){
