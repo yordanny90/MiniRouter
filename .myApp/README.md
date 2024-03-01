@@ -3,8 +3,8 @@
 
 El código de los ejemplos consiste en:
 - [Carpeta de ejemplos](.)
-- [PHP Web](index.php)
-- [PHP CLI](task.php)
+- [PHP Web](../index.php)
+- [PHP CLI](../task.php)
 
 Para ejecutar el job del ejemplo puede hacerlo con los comandos
 ```shell
