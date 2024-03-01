@@ -3,8 +3,8 @@
 
 El código de los ejemplos consiste en:
 - [Carpeta de ejemplos](.)
-- [PHP Web](index.php)
-- [PHP CLI](task.php)
+- [PHP Web](../index.php)
+- [PHP CLI](../task.php)
 
 Para ejecutar el job del ejemplo puede hacerlo con los comandos
 ```shell
@@ -15,9 +15,9 @@ php ./task.php args.show/param1/param2 -var1:"Valor 1" "-var2:Valor 2" -Flags? "
 
 ## Que puedo modificar o borrar de este repositorio?
 
-Solo el archivo [.MRcore.phar](../.MRcore.phar) es indispensable para una actualización exitosa de MiniRouter.
+Solo el archivo [MRcore.phar](../build/MRcore.phar) es indispensable para una actualización exitosa de MiniRouter.
 
-Conserve solo el archivo PHAR que va a utilizar en su proyecto, la alternativa comprimida [.MRcore.phar.gz](../.MRcore.phar.gz) puede reemplazar al anterior si desea ahorrar espacio de almacenamiento.
+Conserve solo el archivo PHAR que va a utilizar en su proyecto, la alternativa comprimida [MRcore.phar.gz](../build/MRcore.phar.gz) puede reemplazar al anterior si desea ahorrar espacio de almacenamiento.
 
 También se elimina la carpeta [src](../src), es innecesario mantenerlo ya que ese código ya está incluido en el archivo PHAR.
 
