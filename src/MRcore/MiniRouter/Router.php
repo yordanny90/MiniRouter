@@ -5,6 +5,7 @@ namespace MiniRouter;
 class Router{
 	const TYPE_CLI=0;
 	const TYPE_HTTP=1;
+    private $type;
 	/**
 	 * @var string Caracter separador para las rutas
 	 */
@@ -19,7 +20,7 @@ class Router{
 	 */
 	private $mainNS;
 	/**
-	 * @var string Nombre de la clase RouteException o una que extienda de esta
+	 * @var string Nombre de la clase {@see RouteException} o una que extienda de esta
 	 */
 	private $classE=RouteException::class;
 	/**
@@ -30,6 +31,11 @@ class Router{
 	 * @var array|null Lista de métodos permitidos en el request
 	 */
 	private $allows;
+    /**
+     * @see Router::bindResourceDir()
+     * @var array
+     */
+    private $resourceDirs=[];
 	/**
 	 * @var string Clase de la que deben extender los endpoint
 	 */
@@ -69,9 +75,9 @@ class Router{
 	}
 
 	/**
-	 * @param $type
+	 * @param int $type
 	 */
-	protected function __construct($type){
+	protected function __construct(int $type){
 		$this->type=$type;
 	}
 
@@ -80,7 +86,7 @@ class Router{
 	 * @param string $parentClass
 	 * @return static
 	 */
-	public static function &startHttp(string $main_namespace, string $parentClass=''){
+	public static function &startHttp(string $main_namespace='', string $parentClass=''){
 		$new=new static(static::TYPE_HTTP);
 		$new->mainNS=$main_namespace;
 		$new->parentClass=$parentClass;
@@ -93,7 +99,7 @@ class Router{
 	 * @param string $parentClass
 	 * @return static
 	 */
-	public static function &startCli(string $main_namespace, string $parentClass=''){
+	public static function &startCli(string $main_namespace='', string $parentClass=''){
 		$new=new static(static::TYPE_CLI);
 		$new->mainNS=$main_namespace;
 		$new->parentClass=$parentClass;
@@ -193,7 +199,48 @@ class Router{
 		$this->allows=$allows;
 	}
 
-	/**
+    /**
+     * Vincula un directorio para limitar el origen de la clase de la ruta.
+     * Si la clase no proviene de una de las carpetas vinculadas, genera un error 403 (FORBIDDEN).
+     * @param string $path
+     * @return bool
+     */
+    public function bindResourceDir(string $path): bool{
+        if(($dir=realpath($path))){
+            if(!in_array($dir, $this->resourceDirs, true)){
+                $this->resourceDirs[]=$dir;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @param string $path
+     * @return bool
+     */
+    public function unbindResourceDir(string $path): bool{
+        if(!($dir=realpath($path))) $dir=$path;
+        if(false!==($pos=array_search($dir, $this->resourceDirs, true))){
+            unset($this->resourceDirs[$pos]);
+            $this->resourceDirs=array_values($this->resourceDirs);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @return array
+     */
+    public function getResourceDirs(): array{
+        return $this->resourceDirs;
+    }
+
+    public function clearResourceDirs(): void{
+        $this->resourceDirs=[];
+    }
+
+    /**
 	 * @return int
 	 */
 	public function getMaxSubDir(): int{
@@ -279,6 +326,18 @@ class Router{
 		$this->loadEndPoint($method ?? 'CLI', $path);
 	}
 
+    /**
+     * @param string|false $classFile Archivo de la clase obtenido de {@see \ReflectionClass::getFileName()}
+     * @return bool
+     */
+    private function validClassFile($classFile): bool{
+        if(count($this->resourceDirs)>0){
+            if(!is_string($classFile) || !preg_match('/^('.implode('|', array_map('preg_quote', $this->resourceDirs)).')[\/\\\\]/', $classFile))
+                return false;
+        }
+        return true;
+    }
+
 	/**
 	 * @param string $method
 	 * @param string $path
@@ -292,7 +351,7 @@ class Router{
 		}
 		$parts=array_filter(explode('/', $path), 'strlen');
 		if(!count($parts)) throw new $this->classE('Class', RouteException::CODE_NOTFOUND);
-		$preg_class="/^(\w+\\\)*\w+$/";
+		$preg_class='/^(\w+\\\)*\w+$/';
 		if($this->getSplitter()!=='/'){
 			$name='';
 			$rclass=str_replace($this->getSplitter(), '\\', $parts[0]);
@@ -315,9 +374,8 @@ class Router{
 					throw new $this->classE('Class', RouteException::CODE_NOTFOUND, $e);
 				}
 			}
-			if($this->parentClass && !$ref_class->isSubclassOf($this->parentClass)){
-				throw new $this->classE('Class', RouteException::CODE_FORBIDDEN);
-			}
+			if($this->parentClass && !$ref_class->isSubclassOf($this->parentClass)) throw new $this->classE('Class', RouteException::CODE_FORBIDDEN);
+            if(!$this->validClassFile($ref_class->getFileName())) throw new $this->classE('Directory', RouteException::CODE_FORBIDDEN);
 			try{
 				$ref_fn=$ref_class->getMethod($method.'_'.$name);
 			}catch(\ReflectionException $e){
@@ -346,6 +404,7 @@ class Router{
 				throw new $this->classE('Class', RouteException::CODE_NOTFOUND, $e);
 			}
 			if($this->parentClass && !$ref_class->isSubclassOf($this->parentClass)) throw new $this->classE('Class', RouteException::CODE_FORBIDDEN);
+            if(!$this->validClassFile($ref_class->getFileName())) throw new $this->classE('Directory', RouteException::CODE_FORBIDDEN);
 			$name=$parts[$len] ?? '';
 			$ref_fn=null;
 			try{
@@ -399,7 +458,7 @@ class Router{
 		elseif($strict_params && !$route->isParamsInfinite() && $route->getParams()<count($this->_params)){
 			throw new $this->classE('Too many params', RouteException::CODE_NOTFOUND);
 		}
-		$route->exec_params=$this->_params;
+		$route->setExecParams($this->_params);
 		return $route;
 	}
 

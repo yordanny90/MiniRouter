@@ -4,9 +4,12 @@ namespace MiniRouter;
 /**
  * Class Route
  * @package MiniRouter
- * @property array $exec_params
  */
 class Route{
+    /**
+     * @var array|null
+     */
+    protected $exec_params;
 	/**
 	 * @var string Ruta válida de la clase del Endpoint
 	 */
@@ -44,6 +47,13 @@ class Route{
 	public function isStarted(){
 		return $this->started;
 	}
+
+    /**
+     * @param array $exec_params
+     */
+    public function setExecParams(array $exec_params): void{
+        $this->exec_params=$exec_params;
+    }
 
 	/**
 	 * @return string
@@ -113,7 +123,7 @@ class Route{
 	 * @return bool
 	 */
 	public function isCallable(){
-		return is_array($this->exec_params??null);
+		return is_array($this->exec_params);
 	}
 
 	/**
@@ -126,15 +136,14 @@ class Route{
 		if($this->isStarted()) return false;
 		if(!$this->isCallable())
 			throw new RouteException('The route cannot be executed', RouteException::CODE_EXECUTION);
-		if($this->ref->isStatic()){
-			$this->started=true;
+        $this->started=true;
+        if($this->ref->isStatic()){
 			$res=forward_static_call_array([
 				$this->getClass(),
 				$this->getFunction()
 			], $this->exec_params);
 		}
 		else{
-			$this->started=true;
 			$obj=$this->getInstance(...$args);
 			$res=call_user_func_array([
 				$obj,
