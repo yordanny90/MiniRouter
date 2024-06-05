@@ -160,9 +160,7 @@ class Response{
 			echo $b;
 		}
 		else{
-			while(ob_get_level()>1){
-				ob_end_flush();
-			}
+			while(ob_get_level()>1) ob_end_flush();
 			if(ob_get_level()==0) ob_start();
 		}
 	}
@@ -183,10 +181,14 @@ class Response{
 
 	/**
 	 * Limpia el buffer completo de salida en todos sus niveles. El buffer queda deshabilitado.
+	 * @param bool $reset Si es TRUE, vuelve a crear los niveles del buffer vaciós
+	 * @return void
 	 * @see ob_end_clean()
 	 */
-	public static function clearBuffer(){
+	public static function clearBuffer(bool $reset=false){
+		if($reset) $l=ob_get_level();
 		while(ob_get_level()>0) ob_end_clean();
+		if($reset) while(--$l>=0) ob_start();
 	}
 
 	/**
@@ -354,6 +356,27 @@ class Response{
 		}
 	}
 
+	private static function fixNoBuffer(int $len){
+		static::addHeaders([
+			'Content-Length'=>$len,
+			'Connection'=>'close',
+		]);
+		if(preg_match('/nginx/i', $_SERVER['SERVER_SOFTWARE']??'')){
+			header('X-Accel-Buffering: no');
+		}
+		elseif(($min=ini_get('output_buffering'))!==false){
+			$diff=intval($min)-$len;
+			if($diff>0) echo str_repeat("\0", $diff)."\n";
+		}
+	}
+
+	private static function fixNoCompress(){
+		static::addHeaders([
+			'Content-Encoding'=>'none',
+		]);
+		if(function_exists('apache_setenv')) apache_setenv('no-gzip', '1');
+	}
+
 	/**
 	 * Envía la respuesta completa al cliente y desactiva el buffer de salida
 	 * @return bool
@@ -374,10 +397,8 @@ class Response{
 				$this->flushContent();
 				if($this->isCloseConn()){
 					$length=ob_get_length();
-					static::addHeaders([
-						'Content-Length'=>$length,
-						'Connection'=>'close',
-					]);
+					self::fixNoBuffer($length);
+					self::fixNoCompress();
 				}
 			}
 			else{
@@ -393,11 +414,8 @@ class Response{
 			$this->flushContent();
 			if(!$cli && ($this->isCloseConn() || (static::isTryGlobalCloseConn() && !$this->isGz()))){
 				$length=ob_get_length();
-				static::addHeaders([
-					'Content-Length'=>$length,
-					'Connection'=>'close',
-				]);
-				if($length==0) echo "\0";
+				self::fixNoBuffer($length);
+				self::fixNoCompress();
 			}
 			static::flushBuffer();
 		}

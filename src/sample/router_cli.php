@@ -7,13 +7,14 @@ use MiniRouter\Router;
 use function MiniRouter\classloader;
 
 if(!defined('APP_DIR')) throw new Exception('App dir missing', 1);
-Response::flatBuffer();
+Response::clearBuffer(true);
 if(!Request::isCLI()){
 	Response::r_forbidden()->send();
 	exit;
 }
 try{
 	$router=Router::startCli('AppTask');
+    $router->bindResourceDir(APP_DIR.'/Routes');
 	classloader(APP_DIR.'/Routes', '', '.php', $router->getMainNamespace(), true);
 	$router->prepare();
 	global $ROUTE;

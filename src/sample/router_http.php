@@ -7,7 +7,7 @@ use MiniRouter\Router;
 use function MiniRouter\classloader;
 
 if(!defined('APP_DIR')) throw new Exception('App dir missing', 1);
-Response::flatBuffer();
+Response::clearBuffer(true);
 if(Request::isCLI()){
 	Response::r_forbidden()->content('Execution by CLI is not allowed')->send();
 	exit;
@@ -19,6 +19,7 @@ try{
 		'Access-Control-Allow-Headers'=>'Content-Type, Authorization, X-Requested-With',
 	]);
 	$router=Router::startHttp('AppWeb');
+    $router->bindResourceDir(APP_DIR.'/Routes');
 	classloader(APP_DIR.'/Routes', '', '.php', $router->getMainNamespace(), true);
 	$router->prepare();
 	global $ROUTE;

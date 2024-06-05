@@ -8,9 +8,11 @@ class globals{
 		return \AppResponse::r_html('', true);
 	}
 
-	function GET_json(){
+	function GET_json($download=null){
 		$json=$GLOBALS;
 		unset($json['GLOBALS']);
-		return \AppResponse::r_json($json);
+		$r=\AppResponse::r_json($json);
+        if($download) $r->download('globals.json');
+        return $r;
 	}
 }
