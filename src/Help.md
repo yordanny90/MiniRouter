@@ -14,18 +14,29 @@ Con el fin de que funcione correctamente la carga automática de las clases, inc
 Los siguientes ejemplos aplican para un endpoint Web cuya clase es `index` con el namespace `\AppWeb\api\modulo`
 
     {APP_DIR}/Routes/AppWeb/api/modulo/index.php
-    {APP_DIR}/Routes/AppWeb/api/modulo-index.php
-    {APP_DIR}/Routes/AppWeb/api/modulo.index.php
     {APP_DIR}/Routes/AppWeb/api-modulo/index.php
     {APP_DIR}/Routes/AppWeb/api.modulo/index.php
+    {APP_DIR}/Routes/AppWeb-api/modulo/index.php
+    {APP_DIR}/Routes/AppWeb.api/modulo/index.php
+    {APP_DIR}/Routes/AppWeb-api-modulo/index.php
+    {APP_DIR}/Routes/AppWeb.api.modulo/index.php
 
 Los siguientes ejemplos aplican para un endpoint Web cuya clase es `index` con el namespace `\AppWeb\api`
 
     {APP_DIR}/Routes/AppWeb/api/index.php
-    {APP_DIR}/Routes/AppWeb/api-index.php
-    {APP_DIR}/Routes/AppWeb/api.index.php
+    {APP_DIR}/Routes/AppWeb-api/index.php
+    {APP_DIR}/Routes/AppWeb.api/index.php
 
 `{APP_DIR}` representa la constante que define la ruta de la aplicación
+
+---
+
+Puede consultar las posibles rutas para el archivo de una clase con la función `\MiniRouter\class_search_file_list`
+
+Las rutas para la clase `\AppWeb\api\index` del ejemplo anterior se pueden encontrar así:
+```php
+$array_files=\MiniRouter\class_search_file_list(\AppWeb\api\index::class, APP_DIR.'/Routes');
+```
 
 ## Cómo funcionan las rutas HTTP
 Por defecto, el enrutamiento funciona mediante una organizacion de rutas de archvos, nombres de clases y nombres de funciones.
@@ -53,14 +64,14 @@ Para el método HTTP es `POST` y el PATH_INFO es `/account.change/password`, sol
 ## Cambiar el separador de la ruta
 La cantidad de caracteres utilizados con este fin son limitados, vea la información en la documentación de la función `Router::setSplitter()`
 
-Es posible utilizar otros separadores distintos al punto, como el `/`, sin embargo no se recomienda este caracter, ya que la optimización de búsqueda de las rutas puede verse afectada.
+Es posible utilizar otros separadores distintos al punto, como el `/`, sin embargo **no se recomienda este caracter**, ya que la optimización de búsqueda de las rutas puede verse afectada.
 
 Cualquier otro caracter distinto al `/` tendra el mismo nivel de optimización que el punto.
 
 > **IMPORTANTE:** Elija el caracter separador al iniciar su proyecto, ya que al cambiarlo altera todas las urls de su aplicación
 
 ---
-Asi se cambia el caracter separador a un `/`:
+Asi se cambia el caracter separador a un `/` (no recomendado):
 
 ```PHP
 $router=\MiniRouter\Router::startHttp('AppWeb');
@@ -143,7 +154,7 @@ $router->setReRouter(new miEnrutador());
 ```
 
 ## PATH_INFO en NGINX
-Para evitar problemas de compatibilidad con NGINX, la lectura del `PATH_INFO` ya está solucionado por el siguiente código:
+Para evitar conflictos de compatibilidad con NGINX, la lectura del `PATH_INFO` ya está solucionado por el siguiente código:
 ```PHP
 $path_info=\MiniRouter\Request::getPathInfo();
 ```
