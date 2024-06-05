@@ -2,12 +2,11 @@
 
 namespace AppWeb\ejemplo1;
 
-use AppWeb\ejemplo1;
 use MiniRouter\Response;
 
-class php_ini extends ejemplo1{
+class php_ini{
 
-	static function GET_(...$_){
+	static function GET_(){
 		echo '<pre>'.json_encode(ini_get_all(), JSON_PRETTY_PRINT).'</pre>';
 		return \AppResponse::r_html('', true);
 	}
