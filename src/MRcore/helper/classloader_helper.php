@@ -18,8 +18,12 @@ function classloader(string $rootdir, string $prefix='', string $suffix='.php', 
 		}
 		$success=spl_autoload_register(function($class_name) use ($rootdir, $prefix, $suffix, $preg_namespace){
 			if($preg_namespace && !preg_match($preg_namespace, $class_name)) return;
-            if($file=class_search_file($class_name, $rootdir, $prefix, $suffix)){
-                include $file;
+            $paths=class_search_file_list($class_name, $rootdir, $prefix, $suffix);
+            foreach($paths as $path){
+                if(is_file($path)){
+                    include $path;
+                    return;
+                }
             }
 		}, true, $prepend);
 		return $success;
@@ -30,15 +34,14 @@ function classloader(string $rootdir, string $prefix='', string $suffix='.php', 
 }
 
 /**
- * Busca el archivo correspondiente a la clase en una carpeta
- * @see classloader()
+ * Genera los posibles archivos correspondientes a la clase en una carpeta indicada
  * @param string $class_name
  * @param string $rootdir
  * @param string $prefix
  * @param string $suffix
- * @return string|null
+ * @return string[]
  */
-function class_search_file(string $class_name, string $rootdir, string $prefix, string $suffix): ?string{
+function class_search_file_list(string $class_name, string $rootdir, string $prefix='', string $suffix='.php'): array{
     $namespace=array_filter(explode('\\', $class_name), 'strlen');
     $class=array_pop($namespace);
     $cNS=count($namespace);
@@ -74,8 +77,5 @@ function class_search_file(string $class_name, string $rootdir, string $prefix, 
             $rootdir.'/'.$mainNS.'.'.str_replace('/','.',$namespace).'/'.$prefix.$class.$suffix,
         ];
     }
-    foreach($paths as $path){
-        if(is_file($path)) return $path;
-    }
-    return null;
+    return $paths;
 }
