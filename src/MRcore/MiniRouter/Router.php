@@ -332,7 +332,7 @@ class Router{
      */
     private function validClassFile($classFile): bool{
         if(count($this->resourceDirs)>0){
-            if(!is_string($classFile) || !preg_match('/^('.implode('|', array_map('preg_quote', $this->resourceDirs)).')[\/\\\\]/', $classFile))
+            if(!is_string($classFile) || !preg_match('/^('.implode('|', array_map(function($a){return preg_quote($a, '/');}, $this->resourceDirs)).')[\/\\\\]/', $classFile))
                 return false;
         }
         return true;
