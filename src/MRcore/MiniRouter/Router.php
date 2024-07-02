@@ -443,7 +443,7 @@ class Router{
 			], true);
 			throw new $this->classE($this->_method, RouteException::CODE_METHODNOTALLOWED);
 		}
-		if(count($allows)==0 || !$this->_fn) throw new $this->classE('Funtion', RouteException::CODE_NOTFOUND);
+		if(count($allows)==0 || !$this->_fn) throw new $this->classE('Function', RouteException::CODE_NOTFOUND);
 		if(!$this->_fn->isPublic()) throw new $this->classE('Function', RouteException::CODE_FORBIDDEN);
 		if(!$this->_class->isInstantiable() && !$this->_fn->isStatic()) throw new $this->classE('Function', RouteException::CODE_FORBIDDEN);
 		$path_class=static::class_to_path($this->mainNS, $this->_class->getName(), $this->getSplitter());

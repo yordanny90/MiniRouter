@@ -10,7 +10,7 @@ class globals{
 		echo '  '.$ROUTE->getPathClass().'.ini'.PHP_EOL;
 		echo '  '.$ROUTE->getPathClass().'.info'.PHP_EOL;
 		echo '  '.$ROUTE->getPathClass().'.classes'.PHP_EOL;
-		echo '  '.$ROUTE->getPathClass().'.funtions'.PHP_EOL;
+		echo '  '.$ROUTE->getPathClass().'.functions'.PHP_EOL;
 		echo '  '.$ROUTE->getPathClass().'.const'.PHP_EOL;
 	}
 
@@ -30,7 +30,7 @@ class globals{
 		var_export( get_declared_classes());
 	}
 
-	function CLI_funtions(){
+	function CLI_functions(){
 		var_export(get_defined_functions());
 	}
 
