@@ -3,6 +3,9 @@ ini_set('default_charset', 'UTF-8');
 date_default_timezone_set('america/costa_rica');
 //readfile(__DIR__.'/phar_loader.php');
 $phar_file=__DIR__.'/build/MRcore.phar';
+if(ini_get('phar.readonly')){
+    throw new Exception("Se requiere phar.readonly=Off en php.ini para continuar.\n".php_ini_loaded_file());
+}
 echo "Eliminando archivos antiguos...".PHP_EOL;
 if(file_exists($phar_file)) unlink($phar_file);
 if(file_exists($phar_file.'.gz')) unlink($phar_file.'.gz');
@@ -13,7 +16,7 @@ $metadata=[
 	'author'=>'Yordanny Mejías',
 	'email'=>'yordanny90@gmail.com',
 	'description'=>'MiniRouter Core',
-	'version'=>'0.1',
+	'version'=>'0.2',
 	'update'=>date(DATE_W3C),
 	'repo'=>'https://github.com/yordanny90/MiniRouter',
 	'default_charset'=>ini_get('default_charset'),

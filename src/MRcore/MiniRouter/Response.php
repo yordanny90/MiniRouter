@@ -3,8 +3,7 @@
 namespace MiniRouter;
 
 class Response{
-	private static $tryGZ=false;
-	private static $tryCloseConn=false;
+	private static $defConn=false;
 	/**
 	 * @var callable|null
 	 */
@@ -21,9 +20,11 @@ class Response{
 	private $fixed=false;
 	private $headers=[];
 	private $incBuffer=false;
-	private $close_conn=false;
-	private $gz=false;
+	private $conn=0;
 	private $sent=false;
+
+	private const CONN_CLOSE=1;
+	private const CONN_GZ=2;
 
 	public function __construct(?int $http_code=null, ?string $content_type=null){
 		if(!is_null($content_type)) $this->content_type($content_type);
@@ -39,56 +40,48 @@ class Response{
 	}
 
 	/**
-	 * Intentar comprimir todos los response antes de enviarlos
+	 * Intenta la compresón con gz al enviar la respuesta
 	 *
-	 * Es incompatible con {@see Response::tryGlobalCloseConn()} y {@see Response::closeConn()}
-	 * @param bool $tryGZ
+	 * Es incompatible con {@see Response::defaultCloseConn()} y {@see Response::closeConn()}
+	 * @param bool|null $value
+	 * @return bool
 	 * @see Response::GZ()
 	 */
-	public static function tryGlobalGZ(bool $tryGZ): void{
-		self::$tryGZ=$tryGZ;
-		if(self::$tryGZ) static::tryGlobalCloseConn(false);
+	public static function defaultGZ(?bool $value=null): bool{
+		if($value!==null){
+			self::$defConn=$value?self::CONN_GZ:(self::$defConn===self::CONN_GZ?0:self::$defConn);
+		}
+		return self::$defConn===self::CONN_GZ;
 	}
 
 	/**
-	 * @return bool
-	 */
-	public static function isTryGlobalGZ(): bool{
-		return self::$tryGZ;
-	}
-
-	/**
-	 * Intentar comprimir todos los response antes de enviarlos
+	 * Intenta el cierre de la conexión al enviar las respuestas
 	 *
-	 * Es incompatible con {@see Response::tryGlobalGZ()} y {@see Response::GZ()}
-	 * @param bool $tryCloseConn
+	 * Es incompatible con {@see Response::defaultGZ()} y {@see Response::GZ()}
+	 * @param bool|null $value
+	 * @return bool
 	 * @see Response::closeConn()
 	 */
-	public static function tryGlobalCloseConn(bool $tryCloseConn): void{
-		self::$tryCloseConn=$tryCloseConn;
-		if(self::$tryCloseConn) static::tryGlobalGZ(false);
+	public static function defaultCloseConn(?bool $value=null): bool{
+		if($value!==null){
+			self::$defConn=$value?self::CONN_CLOSE:(self::$defConn===self::CONN_CLOSE?0:self::$defConn);
+		}
+		return self::$defConn===self::CONN_CLOSE;
+	}
+
+	/**
+	 * @param bool|null $value
+	 * @return bool
+	 */
+	public static function ignore_user_abort(?bool $value=null): bool{
+		return boolval(ignore_user_abort($value));
 	}
 
 	/**
 	 * @return bool
 	 */
-	public static function isTryGlobalCloseConn(): bool{
-		return self::$tryCloseConn;
-	}
-
-	/**
-	 * @param null|bool $value
-	 * @return bool
-	 */
-	public static function continue_on_disconnect($value=null){
-		return ignore_user_abort($value);
-	}
-
-	/**
-	 * @return bool
-	 */
-	public static function connection_aborted(){
-		return connection_aborted();
+	public static function connection_aborted(): bool{
+		return boolval(connection_aborted());
 	}
 
 	/**
@@ -106,7 +99,10 @@ class Response{
 	public static function getHeaderList(){
 		$list=[];
 		foreach(headers_list() as $h){
-			[$k, $v]=explode(':', $h, 2);
+			[
+				$k,
+				$v
+			]=explode(':', $h, 2);
 			$k=mb_convert_case(trim($k), MB_CASE_TITLE);
 			$v=trim($v);
 			if(!isset($list[$k])){
@@ -129,7 +125,10 @@ class Response{
 		$name=mb_convert_case($name, MB_CASE_TITLE);
 		$val=$as_array?[]:null;
 		foreach(headers_list() as $h){
-			[$k, $v]=explode(':', $h, 2);
+			[
+				$k,
+				$v
+			]=explode(':', $h, 2);
 			$k=mb_convert_case($k, MB_CASE_TITLE);
 			if($k===$name){
 				$v=trim($v);
@@ -154,15 +153,14 @@ class Response{
 	 * @return void
 	 */
 	public static function flatBuffer(bool $gz=false){
+		$b=static::getBuffer();
 		if($gz){
-			$b=static::getBuffer();
 			ob_start('ob_gzhandler');
-			echo $b;
 		}
 		else{
-			while(ob_get_level()>1) ob_end_flush();
-			if(ob_get_level()==0) ob_start();
+			ob_start();
 		}
+		echo $b;
 	}
 
 	/**
@@ -227,32 +225,30 @@ class Response{
 	}
 
 	/**
-	 * Habilita/Dehabilita el cierre de la conexión al enviar la respuesta
+	 * Habilita/Deshabilita el cierre de la conexión al enviar la respuesta
 	 *
-	 * Es incompatible con {@see Response::tryGlobalGZ()} y {@see Response::GZ()}
-	 * @param bool $val
+	 * Si se habilita, automáticamente se ejecutará {@see Response::ignore_user_abort()} durante el envío, se intentará cerrar la conexión con el cliente para continuar la ejecucion del proceso
+	 *
+	 * Es incompatible con {@see Response::defaultGZ()} y {@see Response::GZ()}
+	 * @param bool $value
 	 * @return $this
-	 * @see Response::tryGlobalCloseConn()
+	 * @see Response::defaultCloseConn()
 	 */
-	public function &closeConn($val){
-		if($this->isFixed()) return $this;
-		$this->close_conn=boolval($val);
-		if($this->close_conn) $this->GZ(false);
+	public function &closeConn(bool $value=true): self{
+		$this->conn=$value?self::CONN_CLOSE:($this->conn===self::CONN_CLOSE?0:$this->conn);
 		return $this;
 	}
 
 	/**
-	 * Habilita/Dehabilita la compresón con gz
+	 * Habilita/Deshabilita la compresón con gz al enviar la respuesta
 	 *
-	 * Es incompatible con {@see Response::tryGlobalCloseConn()} y {@see Response::closeConn()}
-	 * @param bool $val
+	 * Es incompatible con {@see Response::defaultCloseConn()} y {@see Response::closeConn()}
+	 * @param bool $value
 	 * @return $this
-	 * @see Response::tryGlobalGZ()
+	 * @see Response::defaultGZ()
 	 */
-	public function &GZ($val){
-		if($this->isFixed()) return $this;
-		$this->gz=boolval($val);
-		if($this->gz) $this->closeConn(false);
+	public function &GZ(bool $value=true): self{
+		$this->conn=$value?self::CONN_GZ:($this->conn===self::CONN_GZ?0:$this->conn);
 		return $this;
 	}
 
@@ -356,25 +352,41 @@ class Response{
 		}
 	}
 
-	private static function fixNoBuffer(int $len){
+	/**
+	 * Establece las configuraciones y headers (basado en el buffer) para intentar cerra la conexión al enviar la respuesta
+	 *
+	 * @return void
+	 * @see Response::closeConn()
+	 */
+	private static function fixCloseConn(){
+		$len=ob_get_length();
+		static::ignore_user_abort(true);
 		static::addHeaders([
+			'Content-Encoding'=>'none',
 			'Content-Length'=>$len,
 			'Connection'=>'close',
 		]);
-		if(preg_match('/nginx/i', $_SERVER['SERVER_SOFTWARE']??'')){
+		//Deshabilita la compresión de apache
+		if(function_exists('apache_setenv')) apache_setenv('no-gzip', '1');
+		if(preg_match('/nginx/i', $_SERVER['SERVER_SOFTWARE'] ?? '')){
+			//Deshabilita la compresión de nginx
 			header('X-Accel-Buffering: no');
 		}
-		elseif(($min=ini_get('output_buffering'))!==false){
+		if(($min=ini_get('output_buffering'))!==false){
 			$diff=intval($min)-$len;
+			//Completa el tamaño minimo de salida del buffer para el envío de la respuesta
 			if($diff>0) echo str_repeat("\0", $diff)."\n";
 		}
 	}
 
-	private static function fixNoCompress(){
-		static::addHeaders([
-			'Content-Encoding'=>'none',
-		]);
-		if(function_exists('apache_setenv')) apache_setenv('no-gzip', '1');
+	/**
+	 * Intenta cerra la conexión luego del envío de la respuesta
+	 *
+	 * @return void
+	 * @see Response::closeConn()
+	 */
+	private static function fixAfterClose(){
+		if(function_exists('fastcgi_finish_request')) fastcgi_finish_request();
 	}
 
 	/**
@@ -387,43 +399,25 @@ class Response{
 		if(!$cli && static::headers_sent()) return false;
 		$this->sent=true;
 		$this->triggerBeforeSend();
-		if(!$cli) static::addHeaders($this->getHeaders());
+		if($cli){
+			if(!$this->isIncludeBuffer()) static::clearBuffer();
+			$this->flushContent();
+			static::flushBuffer();
+			$this->triggerAfterSend();
+			return true;
+		}
+		static::addHeaders($this->getHeaders());
+		if(!$this->isIncludeBuffer()) static::clearBuffer();
 		http_response_code($this->getHttpCode());
-		if($this->isFixed()){
-			## Si es fixed, se ignoran las banderas globales
-			if(!$cli && ($this->isGz() || $this->isCloseConn())){
-				if(!$this->isIncludeBuffer()) static::clearBuffer();
-				static::flatBuffer($this->isGz());
-				$this->flushContent();
-				if($this->isCloseConn()){
-					$length=ob_get_length();
-					self::fixNoBuffer($length);
-					self::fixNoCompress();
-				}
-			}
-			else{
-				if(!$this->isIncludeBuffer()) static::clearBuffer();
-				static::flushBuffer();
-				$this->flushContent();
-			}
-			static::flushBuffer();
+		$close=$this->isCloseConn() || (!$this->isFixed() && static::defaultCloseConn());
+		$gz=$close?false:($this->isGz() || (!$this->isFixed() && static::defaultGZ()));
+		static::flatBuffer($gz);
+		$this->flushContent();
+		if($close){
+			self::fixCloseConn();
 		}
-		elseif($this->isGz() || $this->isCloseConn() || static::isTryGlobalGZ() || static::isTryGlobalCloseConn()){
-			if(!$this->isIncludeBuffer()) static::clearBuffer();
-			static::flatBuffer($this->isGz() || (static::isTryGlobalGZ() && !$this->isCloseConn()));
-			$this->flushContent();
-			if(!$cli && ($this->isCloseConn() || (static::isTryGlobalCloseConn() && !$this->isGz()))){
-				$length=ob_get_length();
-				self::fixNoBuffer($length);
-				self::fixNoCompress();
-			}
-			static::flushBuffer();
-		}
-		else{
-			if(!$this->isIncludeBuffer()) static::clearBuffer();
-			static::flushBuffer();
-			$this->flushContent();
-		}
+		static::flushBuffer();
+		if($close) self::fixAfterClose();
 		$this->triggerAfterSend();
 		return true;
 	}
@@ -446,14 +440,14 @@ class Response{
 	 * @return bool
 	 */
 	public function isCloseConn(): bool{
-		return $this->close_conn;
+		return $this->conn===self::CONN_CLOSE;
 	}
 
 	/**
 	 * @return bool
 	 */
 	public function isGz(): bool{
-		return $this->gz;
+		return $this->conn===self::CONN_GZ;
 	}
 
 	/**
@@ -474,14 +468,12 @@ class Response{
 	}
 
 	public function &content(string $content){
-		if($this->isFixed()) return $this;
 		$this->content=$content;
 		$this->fixed=false;
 		return $this;
 	}
 
 	public function &fixContent(callable $fixedFunc, ...$content){
-		if($this->isFixed()) return $this;
 		$this->content=$content;
 		$this->fixed=$fixedFunc;
 		return $this;
@@ -551,10 +543,8 @@ class Response{
 		$new=null;
 		if(is_file($filename)){
 			$new=new static(null, $mime ?? 'application/octet-stream');
-			$new->header('Content-Length', filesize($filename));
-			$new->header('Connection', 'close');
 			if(is_string($download)) $new->download($download);
-			$new->fixContent('readfile', $filename);
+			$new->fixContent('readfile', $filename)->closeConn();
 		}
 		return $new;
 	}
@@ -566,13 +556,11 @@ class Response{
 	 * @param null|string $close_gz null|"close"|"gz"
 	 * @return static|null
 	 */
-	public static function &r_resource($resource, $mime=null, ?string $download=null, ?string $close_gz=null){
+	public static function &r_resource($resource, $mime=null, ?string $download=null){
 		$new=null;
 		if(is_resource($resource)){
 			$new=new static(null, $mime ?? 'application/octet-stream');
 			if(is_string($download)) $new->download($download);
-			if($close_gz=='gz') $new->GZ(true);
-			elseif($close_gz=='close') $new->closeConn(true);
 			$new->fixContent('fpassthru', $resource);
 		}
 		return $new;
