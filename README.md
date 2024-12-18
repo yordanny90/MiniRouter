@@ -20,7 +20,7 @@ Hay varios modos de iniciar un proyecto, según el formato que desee en las dire
 
 La estructura de archivos y carpetas es indiferente, esta elección solo afecta las URLs
 
-Para todos los ejemplos solo necesita descargar el archivo [MRcore.phar](build/MRcore.phar) 
+Para todos los ejemplos solo necesita descargar el archivo [MRcore.phar](.build/MRcore.phar) 
 en una carpeta de su repositorio que no sea accesible para el usuario.
 
 Por ejemplo la carpeta `.lib` que esta protegida por el [.htaccess](.htaccess)
